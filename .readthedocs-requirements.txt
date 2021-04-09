@@ -1,0 +1,8 @@
+sphinx
+numpy
+sphinx-gallery
+numpydoc
+pandas
+loky
+tqdm
+distributed

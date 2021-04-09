@@ -1,0 +1,5 @@
+
+python:
+  pip_install: true
+
+requirements_file: .readthedocs-requirements.txt
