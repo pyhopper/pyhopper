@@ -1,0 +1,1 @@
+rsync -r pyhopper /home/mathias/dev/azure/rpc/PyHopper/

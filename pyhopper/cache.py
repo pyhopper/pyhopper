@@ -38,7 +38,10 @@ class EvaluationCache:
     def commit(self, item, result):
         if self._enabled:
             hash_code = self._deep_hash(item)
-            del self._staging[hash_code]
+            if hash_code in self._staging.keys():
+                del self._staging[hash_code]
+            else:
+                print("WARNING: hash_code not found in staging!\n" + str(item))
             self._cache[hash_code] = result
 
     def clear(self):

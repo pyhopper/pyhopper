@@ -14,11 +14,11 @@
 import signal
 import time
 
-import loky
 import os
 from types import FunctionType, GeneratorType
 import numpy as np
 import sys
+import gc
 
 _signals_received = 0
 
@@ -46,6 +46,15 @@ class SignalListener:
             if self._force_quit_callback is not None:
                 self._force_quit_callback()
 
+            import psutil
+
+            try:
+                parent = psutil.Process(os.getpid())
+                children = parent.children(recursive=True)
+                for process in children:
+                    process.send_signal(signal.SIGTERM)
+            except psutil.NoSuchProcess:
+                pass
             sys.exit(-1)
         else:
             if self._gradual_quit_callback is not None:
@@ -78,30 +87,38 @@ def get_gpu_list():
     res = subprocess.run("nvidia-smi -L", shell=True, stdout=subprocess.PIPE)
     gpus = res.stdout.decode("utf-8").split("\n")
     gpu_list = []
+    # TODO: Maybe always check for E. Process
+    # TODO: maybe use xml or other output format of nvidia-smi
+    is_process_exclusive = False
     for gpu in gpus:
         if gpu.startswith("GPU"):
-            gpu_list.append(len(gpu_list))
+            gpu_list.append(str(len(gpu_list)))
+        if "E. Process" in gpu:
+            is_process_exclusive = True
     return gpu_list
 
 
 class GPUAllocator:
-    def __init__(self):
-        gpu_list = get_gpu_list()
-        self.num_gpus = len(gpu_list)
-        self._free_gpus = gpu_list
-        self._allocated = {}
+    def __init__(self, factor):
+        physical_gpus = get_gpu_list()
+        virtual_gpus = []
+        for i in range(factor):
+            virtual_gpus.extend(physical_gpus)
+        self.num_gpus = len(virtual_gpus)
+        self._free_gpus = virtual_gpus
+        self._allocated = {}  # dict future -> str
 
-    def free(self, key):
-        gpu = self._allocated[key]
+    def free(self, future):
+        gpu = self._allocated[future]
         self._free_gpus.append(gpu)
-        del self._allocated[key]
+        del self._allocated[future]
 
     def pop_free(self):
         gpu = self._free_gpus.pop()
         return gpu
 
-    def alloc(self, key, gpu):
-        self._allocated[key] = gpu
+    def alloc(self, future, gpu):
+        self._allocated[future] = gpu
 
 
 class EvaluationResult:
@@ -123,8 +140,12 @@ def dummy_signal_handler(sig, frame):
 
 
 def execute(objective_function, candidate, canceller, kwargs, remote=False, gpu=None):
+    """
+    Wrapper function for the objective function that takes care of GPU allocation and the SIGINT signal handle
+    """
 
     if gpu is not None:
+        # GPU Mode -> Get environment variable to be consumed by PyTorch and TensorFlow
         os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu)
     if remote:
         signal.signal(signal.SIGINT, dummy_signal_handler)
@@ -134,9 +155,12 @@ def execute(objective_function, candidate, canceller, kwargs, remote=False, gpu=
         iter_or_result = objective_function(candidate, **kwargs)
         if iter_or_result is None:
             raise ValueError(
-                "Objective function returned 'None'. This probably means you forgot to add a 'return' (or 'yield') statement at the end of the function."
+                "Objective function returned 'None'. This probably means you forgot to add a 'return' (or 'yield') "
+                "statement at the end of the function. If you intended to cancel the evaluation, you can do that by "
+                "\n```\nraise pyhopper.CancelEvaluation()\n```\n"
             )
         if isinstance(iter_or_result, GeneratorType):
+            # Generator mode
             repeat = True
             eval_result.intermediate_results = []
             while repeat:
@@ -157,6 +181,7 @@ def execute(objective_function, candidate, canceller, kwargs, remote=False, gpu=
                 except StopIteration:
                     repeat = False
         else:
+            # No iterator but a simple function
             eval_result.value = iter_or_result
             if np.isnan(iter_or_result):
                 eval_result.was_cancelled = True
@@ -167,14 +192,22 @@ def execute(objective_function, candidate, canceller, kwargs, remote=False, gpu=
         # we may need the information if the cancellation was done by the user inside the objective function
         # or by an EarlyCanceller
         eval_result.cancelled_by_user = True
+    gc.collect()
     return eval_result
+
+
+def parse_factor(n_jobs):
+    # Remove all non-digits
+    only_digits = "".join(c for c in n_jobs if c.isdigit())
+    if len(only_digits) == 0:
+        return 1
+    return int(only_digits)
 
 
 class TaskManager:
     def __init__(self, n_jobs, mp_backend):
         admissible_mp_backends = [
             "auto",
-            "loky",
             "multiprocessing",
             "dask",
             "dask-cuda",
@@ -186,35 +219,35 @@ class TaskManager:
         self._gpu_allocator = None
         self._pending_candidates = []
         self._pending_futures = []
-        if n_jobs == "per_gpu":
-            if mp_backend in ["auto", "dask-cuda"]:
+        if isinstance(n_jobs, str) and (
+            n_jobs.endswith("per_gpu") or n_jobs.endswith("per-gpu")
+        ):
+            if mp_backend == "dask-cuda":
                 mp_backend = "dask-cuda"
-            elif mp_backend == "multiprocessing":
+            elif mp_backend in ["auto", "multiprocessing"]:
+                mp_backend = "multiprocessing"
                 # workaround if dask-cuda does not work
-                self._gpu_allocator = GPUAllocator()
+                factor = parse_factor(n_jobs)
+                self._gpu_allocator = GPUAllocator(factor)
                 n_jobs = self._gpu_allocator.num_gpus
                 self._queue_max = n_jobs
             else:
                 raise ValueError(
-                    f"Cannot use mp_backend ```{mp_backend}``` when using per_gpu mode. Valid options are 'dask-cuda' and 'multiprocessing' ('auto' defaults to 'dask-cuda')"
+                    f"Cannot use mp_backend ```{mp_backend}``` when using per_gpu mode. Valid options are 'dask-cuda' and 'multiprocessing' ('auto' defaults to 'multiprocessing')"
                 )
         elif isinstance(n_jobs, int):
             if mp_backend == "auto":
-                if sys.version_info.major == 3 and sys.version_info.minor <= 6:
-                    # on python 3.6 default is loky
-                    mp_backend = "loky"
-                else:
-                    # on python 3.7 or newer default is built-in multiprocessing
-                    mp_backend = "multiprocessing"
+                mp_backend = "multiprocessing"
             if n_jobs <= 0:
                 n_jobs = len(os.sched_getaffinity(0))
             self._queue_max = n_jobs
         else:
             raise ValueError(
-                "Could not parse ```n_jobs``` argument. Valid options are positive integers, -1 (all CPU cores), and 'per_gpu'"
+                "Could not parse ```n_jobs``` argument. Valid options are positive integers, -1 (all CPU cores), 'per_gpu', and '[int] per_gpu'"
             )
 
         if mp_backend == "dask-cuda":
+            # Experimental
             try:
                 from dask_cuda import LocalCUDACluster
                 from dask.distributed import Client, wait
@@ -226,17 +259,11 @@ class TaskManager:
             self._backend_FIRST_COMPLETED = "FIRST_COMPLETED"
             self._backend_ALL_COMPLETED = "ALL_COMPLETED"
             cluster = LocalCUDACluster()
-            print("CUDA_VISIBLE_DEVICES:", cluster.cuda_visible_devices)
+            # print("CUDA_VISIBLE_DEVICES:", cluster.cuda_visible_devices)
             self._queue_max = len(cluster.cuda_visible_devices)
             self._backend_task_executor = Client(cluster)
             self._backend_wait_func = wait
-        elif mp_backend == "loky":
-            self._backend_wait_func = loky.wait
-            self._backend_FIRST_COMPLETED = loky.FIRST_COMPLETED
-            self._backend_ALL_COMPLETED = loky.ALL_COMPLETED
-            self._backend_task_executor = loky.get_reusable_executor(
-                max_workers=n_jobs, timeout=20
-            )
+            n_jobs = -1
         elif mp_backend == "multiprocessing":
             import concurrent.futures
 
@@ -247,6 +274,7 @@ class TaskManager:
                 max_workers=n_jobs
             )
         elif mp_backend == "dask":
+            # Experimental
             try:
                 from dask.distributed import Client, LocalCluster, wait
             except:
@@ -262,6 +290,7 @@ class TaskManager:
         else:
             assert False, "This should never happen"
         self._mp_backend = mp_backend
+        self.n_jobs = n_jobs
 
     def shutdown(self):
         self._backend_task_executor.shutdown(wait=False)
@@ -269,7 +298,7 @@ class TaskManager:
     def submit(self, objective_function, candidate_type, candidate, canceller, kwargs):
         gpu_arg = None
         if self._gpu_allocator is not None:
-            # Get a free GPU
+            # GPU Mode -> Get a free GPU
             gpu_arg = self._gpu_allocator.pop_free()
         res = self._backend_task_executor.submit(
             execute,
@@ -277,11 +306,11 @@ class TaskManager:
             candidate,
             canceller,
             kwargs,
-            True,
+            True,  # remote = True
             gpu_arg,
         )
         if self._gpu_allocator is not None:
-            # Mark GPU as allocated by the future object
+            # GPU Mode -> Mark GPU as allocated by the future object
             self._gpu_allocator.alloc(res, gpu_arg)
         self._pending_futures.append(res)
         self._pending_candidates.append((candidate_type, time.time(), candidate))
@@ -303,14 +332,15 @@ class TaskManager:
         )
 
     def iterate_done_tasks(self):
+        """
+        Generator that gathers all finished tasks.
+        yields tuples of the form (type,param,runtime, result_f)
+        """
         i = 0
         while i < len(self._pending_futures):
             if self._pending_futures[i].done():
                 if self._gpu_allocator is not None:
-                    # print(
-                    #     "free GPU: ",
-                    #     self._gpu_allocator._allocated[self._pending_futures[i]],
-                    # )
+                    # GPU Mode -> Mark GPU as freed
                     self._gpu_allocator.free(self._pending_futures[i])
                 candidate_type, start_time, candidate = self._pending_candidates[i]
                 future = self._pending_futures[i]

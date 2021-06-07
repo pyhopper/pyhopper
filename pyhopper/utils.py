@@ -21,7 +21,7 @@ class NTimesEvaluator:
     def __init__(self, func, n, yield_after=0, reduction="mean", pass_index_arg=False):
         if n <= 0:
             raise ValueError(f"n must be > 0, but got {n}")
-        if not None and yield_after >= n:
+        if yield_after is not None and yield_after >= n:
             raise ValueError(
                 f"'yield_after' must be less than 'n', but got {yield_after} and {n}"
             )
@@ -52,8 +52,10 @@ class NTimesEvaluator:
                     f"Objective function returned None. The probably means you forgot to add a 'return' statement at the end of the function"
                 )
             results.append(float(r))
-            if i >= self._yield_after:
+            if self._yield_after is not None and i >= self._yield_after:
                 yield self._reduction(results)
+        if self._yield_after is None:
+            return self._reduction(results)
 
 
 def parse_timeout(timeout: Union[int, float, str]):

@@ -15,11 +15,4 @@
 
 from __future__ import absolute_import
 
-import pyhopper.cancellers as cancellers
-from pyhopper.parallel import CancelEvaluation as CancelEvaluation
-from pyhopper.search import Search as Search
-from pyhopper.search import register_float as float
-from pyhopper.search import register_int as int
-from pyhopper.search import register_custom as custom
-from pyhopper.search import register_choice as choice
-from pyhopper.utils import NTimesEvaluator as wrap_n_times
+from pyhopper.callbacks.callbacks import Callback

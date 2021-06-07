@@ -15,6 +15,6 @@
 
 from __future__ import absolute_import
 
-from .early_cancellers import TopKCanceller as TopK
-from .early_cancellers import QuantileCanceller as Quantile
-from .early_cancellers import EarlyCanceller as EarlyCanceller
+from pyhopper.cancellers.early_cancellers import TopKCanceller as TopK
+from pyhopper.cancellers.early_cancellers import QuantileCanceller as Quantile
+from pyhopper.cancellers.early_cancellers import EarlyCanceller as EarlyCanceller

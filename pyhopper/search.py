@@ -25,6 +25,7 @@ from .parameters import (
     Parameter,
 )
 from .parallel import execute, TaskManager, EvaluationResult, SignalListener
+from .callbacks.callbacks import Callback
 import numpy as np
 from typing import Union, Optional, Any, Tuple
 from types import FunctionType
@@ -47,13 +48,19 @@ class CandidateType(Enum):
     MANUALLY_ADDED = 1
     RANDOM_SEEDING = 2
     NEIGHBORHOOD_SAMPLING = 3
+    REEVALUATION = 4
 
 
 class ScheduledRun:
     def __init__(
         self,
-        max_steps: Optional[int] = None,
-        timeout: Union[int, float, str, None] = None,
+        max_steps=None,
+        timeout=None,
+        seeding_steps=None,
+        seeding_timeout=None,
+        seeding_ratio=None,
+        start_temperature=1.0,
+        end_temperature=0.0,
     ):
         if max_steps is not None and timeout is not None:
             raise ValueError(
@@ -67,6 +74,30 @@ class ScheduledRun:
         self._start_time = time.time()
         self._step = 0
         self._sigterm_received = 0
+        self._start_temperature = start_temperature
+        self._end_temperature = end_temperature
+
+        if (
+            (seeding_steps is not None and seeding_timeout is not None)
+            or (seeding_ratio is not None and seeding_timeout is not None)
+            or (seeding_ratio is not None and seeding_steps is not None)
+        ):
+            raise ValueError(
+                "Can only specify one of 'seeding_steps', 'seeding_timeout' and 'seeding_ratio' at the same time, the others must be None"
+            )
+
+        self._seeding_timeout = None
+        if seeding_timeout is not None:
+            self._seeding_timeout = parse_timeout(seeding_timeout)
+        self._seeding_max_steps = seeding_steps
+        self._seeding_ratio = seeding_ratio  # only needed for endless mode
+        if seeding_ratio is not None:
+            if self._step_limit is not None:
+                # Max steps mode with seeding ratio provided
+                self._seeding_max_steps = int(seeding_ratio * max_steps)
+            elif self._timeout is not None:
+                # Timeout mode with seeding ratio provided
+                self._seeding_timeout = seeding_ratio * self._timeout
 
         self._temp_start = None
         self._force_quit_callback = None
@@ -88,7 +119,22 @@ class ScheduledRun:
         return time.time() - self._start_time
 
     @property
+    def is_mixed_endless(self):
+        """
+        True if in endless seeding+sampling mode
+        """
+        return (
+            self._timeout is None
+            and self._step_limit is None
+            and self._seeding_timeout is None
+            and self._seeding_max_steps is None
+        )
+
+    @property
     def is_endless(self):
+        """
+        True if in endless (sampling) mode
+        """
         return self._timeout is None and self._step_limit is None
 
     @property
@@ -133,11 +179,20 @@ class ScheduledRun:
         else:
             return False
 
-    def reset_temperature(self):
-        if self._step_limit is not None:
-            self._temp_start = self._step
+    def is_seeding_timeout(self):
+        if self._sigterm_received > 0:
+            return True
+        if self._seeding_max_steps is not None:
+            # step-scheduled mode
+            return self._step >= self._seeding_max_steps
+        elif self._seeding_timeout is not None:
+            # time-scheduled mode
+            return time.time() - self._start_time >= self._seeding_timeout
         else:
-            self._temp_start = time.time() - self._start_time
+            return False
+
+    def reset_temperature(self):
+        self._temp_start_units = self.current_units
 
     def to_elapsed_str(self):
         return (
@@ -154,25 +209,150 @@ class ScheduledRun:
 
     @property
     def temperature(self):
-        if self._step_limit is not None:
-            # step-scheduled mode
-            progress = (self._step - self._temp_start) / (
-                self._step_limit - self._temp_start
-            )
-            return 1.0 - progress
+        if self.is_endless:
+            # In endless mode we randomly sample the progress
+            progress = np.random.default_rng().random()
         else:
-            # time-scheduled mode
-            elapsed = time.time() - self._start_time
-            progress = (elapsed - self._temp_start) / (self._timeout - self._temp_start)
-            return 1.0 - progress
+            progress = (self.current_units - self._temp_start_units) / max(
+                self.total_units - self._temp_start_units, 1e-6  # don't divide by 0
+            )
+            progress = np.clip(progress, 0, 1)
+        return (
+            self._start_temperature
+            + (self._end_temperature - self._start_temperature) * progress
+        )
 
 
 class History:
+    def __init__(self, keep_full_record=False):
+        self._keep_full_record = keep_full_record
+        self._log_candidate = []
+        self._log_types = []
+        self._log_f = []
+        self._log_arrive_time = []
+        self._log_best_f = []
+        self._log_runtime = []
+
+        self._cancelled_types = []
+        self._cancelled_candidates = []
+        self._cancelled_arrive_time = []
+        self._cancelled_runtime = []
+        self._start_time = time.time()
+
+    def append_cancelled(self, candidate, candidate_type, runtime):
+        self._cancelled_runtime.append(runtime)
+        self._cancelled_types.append(candidate_type)
+        self._cancelled_arrive_time.append(time.time() - self._start_time)
+        if self._keep_full_record:
+            self._cancelled_candidates.append(candidate)
+
+    @property
+    def keep_full_record(self):
+        return self._keep_full_record
+
+    def append(self, candidate, candidate_type, runtime, f, best_f):
+        if self._keep_full_record:
+            self._log_candidate.append(candidate)
+        self._log_types.append(candidate_type)
+        self._log_f.append(f)
+        self._log_arrive_time.append(time.time() - self._start_time)
+        self._log_best_f.append(best_f)
+        self._log_runtime.append(runtime)
+
+    def __getitem__(self, item):
+        if not self._keep_full_record:
+            raise ValueError(
+                f"Error: Candidates were not recorded because ```keep_parameter_history``` argument passed to ```pyhopper.Search``` was set to False."
+            )
+        return self._log_candidate[item]
+
+    def get_marginal(self, item):
+        if not self._keep_full_record:
+            raise ValueError(
+                f"Error: Candidates were not recorded because ```keep_parameter_history``` argument passed to ```pyhopper.Search``` was set to False."
+            )
+        if len(self._log_candidate) > 0:
+            if item not in self._log_candidate[0].keys():
+                raise ValueError(
+                    f"Error: Could not find key '{item}' in logged parameters"
+                )
+        return [self._log_candidate[i][item] for i in range(len(self._log_candidate))]
+
+    def get_cancelled_marginal(self, item):
+        if not self._keep_full_record:
+            raise ValueError(
+                f"Error: Candidates were not recorded because ```keep_parameter_history``` argument passed to ```pyhopper.Search``` was set to False."
+            )
+        if len(self._cancelled_candidates) > 0:
+            if item not in self._cancelled_candidates[0].keys():
+                raise ValueError(
+                    f"Error: Could not find key '{item}' in logged parameters"
+                )
+        return [
+            self._cancelled_candidates[i][item]
+            for i in range(len(self._cancelled_candidates))
+        ]
+
+    def __len__(self):
+        return len(self._log_f)
+
+    @property
+    def fs(self):
+        return self._log_f
+
+    @property
+    def best_f(self):
+        return self._log_best_f[-1]
+
+    @property
+    def best_fs(self):
+        return self._log_best_f
+
+    @property
+    def steps(self):
+        return list(range(len(self._log_f)))
+
+    @property
+    def seconds(self):
+        return self._log_arrive_time
+
+    @property
+    def minutes(self):
+        return [t / 60 for t in self._log_arrive_time]
+
+    @property
+    def hours(self):
+        return [t / 60 / 60 for t in self._log_arrive_time]
+
+    def __repr__(self):
+        repr_str = f"pyhopper.History(len={len(self)}"
+        if len(self) > 0:
+            repr_str += f", best={self.best_f:0.3g}"
+        repr_str += ")"
+        return repr_str
+
+    def clear(self):
+        self._log_candidate = []
+        self._log_types = []
+        self._log_f = []
+        self._log_arrive_time = []
+        self._log_best_f = []
+        self._log_runtime = []
+
+        self._cancelled_types = []
+        self._cancelled_candidates = []
+        self._cancelled_arrive_time = []
+        self._cancelled_runtime = []
+        self._start_time = time.time()
+
+
+class LocalHistory:
     def __init__(self, direction):
         self._direction = direction
         self._start_time = time.time()
         self._log_candidate_types = []
         self._log_candidate_f = []
+        self._log_candidate_runtime = []
         self._log_candidate_time = []
         self._log_candidate_best_f = []
 
@@ -181,12 +361,14 @@ class History:
             CandidateType.MANUALLY_ADDED: None,
             CandidateType.RANDOM_SEEDING: None,
             CandidateType.NEIGHBORHOOD_SAMPLING: None,
+            CandidateType.REEVALUATION: None,
         }
         self._amount_per_type = {
             CandidateType.INIT: 0,
             CandidateType.MANUALLY_ADDED: 0,
             CandidateType.RANDOM_SEEDING: 0,
             CandidateType.NEIGHBORHOOD_SAMPLING: 0,
+            CandidateType.REEVALUATION: 0,
         }
         self._cancelled_per_type = {
             CandidateType.INIT: 0,
@@ -209,7 +391,7 @@ class History:
             or (self._direction == "min" and new < old)
         )
 
-    def candidate_cancelled(self, candidate_type):
+    def append_cancelled(self, candidate_type):
         self._cancelled_per_type[candidate_type] += 1
         self._total_cancelled += 1
 
@@ -217,7 +399,8 @@ class History:
         self._best_f = best_f
         self._best_per_type[CandidateType.INIT] = best_f
 
-    def append(self, candidate_type, f):
+    def append(self, candidate_type, runtime, f):
+        self._log_candidate_runtime.append(runtime)
         self._log_candidate_types.append(candidate_type)
         self._log_candidate_f.append(f)
         self._log_candidate_time.append(time.time() - self._start_time)
@@ -227,14 +410,6 @@ class History:
         if self.is_better(self._best_per_type[candidate_type], f):
             self._best_per_type[candidate_type] = f
         self._amount_per_type[candidate_type] += 1
-
-    def as_dict(self):
-        return {
-            "best_f": self._log_candidate_best_f,
-            "candidate_f": self._log_candidate_f,
-            "candidate_time": self._log_candidate_time,
-            "candidate_type": self._log_candidate_types,
-        }
 
     def start_manually_added_phase(self):
         self._init_time = time.time() - self._start_time
@@ -250,10 +425,10 @@ class History:
     def start_endless_phase(self):
         self._manually_time = time.time() - self._start_time - self._init_time
 
-    def end_endless_phase(self, ratio):
+    def end_endless_phase(self, endless_seeding_ratio):
         elapsed = time.time() - self._start_time - self._manually_time - self._init_time
-        self._seeding_time = (1.0 - ratio) * elapsed
-        self._neighbor_time = ratio * elapsed
+        self._seeding_time = endless_seeding_ratio * elapsed
+        self._neighbor_time = (1.0 - endless_seeding_ratio) * elapsed
         self._total_time = time.time() - self._start_time
 
     def end_neighbor_phase(self):
@@ -368,6 +543,7 @@ class Search:
         direction: str = "maximize",
         on_new_best_callback: FunctionType = None,
         on_candidate_evaluated_callback: FunctionType = None,
+        keep_parameter_history: bool = True,
     ):
         if direction not in [
             "maximize",
@@ -390,9 +566,10 @@ class Search:
         self._canceller = None
         self._ignore_nans = None
 
-        self._history = None
+        self._hooked_callbacks = []
+        self._history = History(keep_parameter_history)
+        self._run_history = None
         self._f_cache = EvaluationCache()
-        self._reported_history = None
         self._manually_queued_candidates = []
 
         self._signal_listener = SignalListener()
@@ -403,7 +580,22 @@ class Search:
         for k, v in parameters.items():
             self._register_parameter(k, v)
 
-    def enqueue_candidate(self, candidate: dict) -> None:
+    def __iadd__(self, other):
+        self.add(other)
+        return self
+
+    def init_with(self, candidate: dict) -> None:
+        """ Overwrite the current best solution """
+        for k, v in self._params.items():
+            cv = candidate.get(k)
+            if cv is not None:
+                self._best_solution[k] = cv
+            else:
+                init = self._best_solution.get(k)
+                if init is None:
+                    raise ValueError(f"Parameter '{k}' has no initial value.")
+
+    def add(self, candidate: dict) -> None:
         added_candidate = {}
         for k, v in self._params.items():
             cv = candidate.get(k)
@@ -425,7 +617,7 @@ class Search:
                 )
         self._manually_queued_candidates.append(added_candidate)
 
-    def enqueue_parameter_sweep(self, name: str, candidate_values: list) -> None:
+    def sweep(self, name: str, candidate_values: list) -> None:
         if name not in self._params.keys():
             raise ValueError(f"Could not find '{name}' in set of registered parameters")
         for value in candidate_values:
@@ -441,17 +633,21 @@ class Search:
                     raise ValueError(f"Parameter '{k}' has no initial value.")
             self._manually_queued_candidates.append(added_candidate)
 
-    def freeze_parameter(self, name: str):
+    def freeze(self, name: str, value: Any = None):
         if name not in self._params.keys():
             raise ValueError(f"Parameter with name '{name}' does not exist")
-        if self._best_solution[name] is None:
+        if value is not None:
+            old_param = self._params.get(name)
+            self._params[name] = FrozenParameter(value, old_param)
+        elif self._best_solution[name] is not None:
+            old_param = self._params.get(name)
+            self._params[name] = FrozenParameter(self._best_solution[name], old_param)
+        else:
             raise ValueError(
-                f"Cannot freeze parameter '{name}' because it has no initial value!"
+                f"Cannot freeze parameter '{name}'. The parameter must either have an initial value or a value must be passed to ```freeze```!"
             )
-        old_param = self._params.get(name)
-        self._params[name] = FrozenParameter(self._best_solution[name], old_param)
 
-    def unfreeze_parameter(self, name: str):
+    def unfreeze(self, name: str):
         if name not in self._params.keys():
             raise ValueError(f"Parameter with name '{name}' does not exists")
         param = self._params[name]
@@ -489,26 +685,28 @@ class Search:
         return candidate
 
     def _submit_candidate(self, objective_function, candidate_type, candidate, kwargs):
+        for c in self._hooked_callbacks:
+            c.on_evaluate_start(candidate)
         self._f_cache.stage(candidate)
+        # In reevaluation mode we don't cancel
+        canceller = (
+            self._canceller if candidate_type != CandidateType.REEVALUATION else None
+        )
         if self._task_executor is None:
+            start = time.time()
             candidate_result = execute(
-                objective_function, candidate, self._canceller, kwargs
+                objective_function,
+                candidate,
+                canceller,
+                kwargs,
             )
-            self._async_result_ready(candidate_type, candidate, candidate_result)
+            self._async_result_ready(
+                candidate_type, candidate, time.time() - start, candidate_result
+            )
         else:
-            # if self._task_executor.is_full:
-            #     # Queue is full, let's wait at least until 1 task is done before submitting this one
-            #     self._task_executor.wait_for_first_to_complete()
             self._task_executor.submit(
-                objective_function, candidate_type, candidate, self._canceller, kwargs
+                objective_function, candidate_type, candidate, canceller, kwargs
             )
-            # # Let's collect all tasks that are complete
-            # for (
-            #     candidate_type,
-            #     candidate,
-            #     candidate_f,
-            # ) in self._task_executor.iterate_done_tasks():
-            #     self._async_result_ready(candidate_type, candidate, candidate_f)
 
     def _wait_for_free_executor(self):
         if self._task_executor is not None:
@@ -519,9 +717,12 @@ class Search:
             for (
                 candidate_type,
                 candidate,
+                runtime,
                 candidate_result,
             ) in self._task_executor.iterate_done_tasks():
-                self._async_result_ready(candidate_type, candidate, candidate_result)
+                self._async_result_ready(
+                    candidate_type, candidate, runtime, candidate_result
+                )
 
     def _wait_for_running_jobs(self):
         if self._task_executor is not None:
@@ -529,11 +730,14 @@ class Search:
             for (
                 candidate_type,
                 candidate,
+                runtime,
                 candidate_result,
             ) in self._task_executor.iterate_done_tasks():
-                self._async_result_ready(candidate_type, candidate, candidate_result)
+                self._async_result_ready(
+                    candidate_type, candidate, runtime, candidate_result
+                )
 
-    def _async_result_ready(self, candidate_type, candidate, candidate_result):
+    def _async_result_ready(self, candidate_type, candidate, runtime, candidate_result):
         if candidate_result.cancelled_by_nan and not self._ignore_nans:
             raise ValueError(
                 "NaN returned in objective function. If NaNs should be ignored (treated as cancelled evaluations) pass 'ignore_nans=True' argument to 'run'"
@@ -552,24 +756,30 @@ class Search:
             self._canceller.append(candidate_result.intermediate_results)
 
         if candidate_result.was_cancelled:
-            self._history.candidate_cancelled(candidate_type)
+            self._history.append_cancelled(candidate, candidate_type, runtime)
+            self._run_history.append_cancelled(candidate_type)
+            for c in self._hooked_callbacks:
+                c.on_evaluate_cancelled(candidate)
             return
 
-        if self._on_candidate_evaluated_callback is not None:
-            self._on_candidate_evaluated_callback(candidate, candidate_result.value)
+        for c in self._hooked_callbacks:
+            c.on_search_end(candidate, candidate_result.value)
 
         if (
-            self._best_f is None
+            candidate_type == CandidateType.REEVALUATION
+            or self._best_f is None
             or (self._direction == "max" and candidate_result.value > self._best_f)
             or (self._direction == "min" and candidate_result.value < self._best_f)
         ):
             # new best solution
             self._best_solution = candidate
             self._best_f = candidate_result.value
-            if self._on_new_best_callback is not None:
-                self._on_new_best_callback(self._best_solution, self._best_f)
-
-        self._history.append(candidate_type, candidate_result.value)
+            for c in self._hooked_callbacks:
+                c.on_new_best(self._best_solution, self._best_f)
+        self._history.append(
+            candidate, candidate_type, runtime, candidate_result.value, self._best_f
+        )
+        self._run_history.append(candidate_type, runtime, candidate_result.value)
 
     # def _evaluate_enqueued_candidates(self, objective_function, kwargs, schedule=None):
     #     while len(self._manually_queued_candidates) > 0:
@@ -594,51 +804,55 @@ class Search:
         text_value_quadtuple = [
             (
                 "Initial solution ",
-                self._history._best_per_type[CandidateType.INIT],
-                self._history._amount_per_type[CandidateType.INIT],
-                self._history._cancelled_per_type[CandidateType.INIT],
-                self._history._init_time,
+                self._run_history._best_per_type[CandidateType.INIT],
+                self._run_history._amount_per_type[CandidateType.INIT],
+                self._run_history._cancelled_per_type[CandidateType.INIT],
+                self._run_history._init_time,
             )
         ]
-        if self._history._amount_per_type[CandidateType.MANUALLY_ADDED] > 0:
+        if self._run_history._amount_per_type[CandidateType.MANUALLY_ADDED] > 0:
             text_value_quadtuple.append(
                 (
                     "Manually added ",
-                    self._history._best_per_type[CandidateType.MANUALLY_ADDED],
-                    self._history._amount_per_type[CandidateType.MANUALLY_ADDED],
-                    self._history._cancelled_per_type[CandidateType.MANUALLY_ADDED],
-                    self._history._manually_time,
+                    self._run_history._best_per_type[CandidateType.MANUALLY_ADDED],
+                    self._run_history._amount_per_type[CandidateType.MANUALLY_ADDED],
+                    self._run_history._cancelled_per_type[CandidateType.MANUALLY_ADDED],
+                    self._run_history._manually_time,
                 )
             )
-        if self._history._amount_per_type[CandidateType.RANDOM_SEEDING] > 0:
+        if self._run_history._amount_per_type[CandidateType.RANDOM_SEEDING] > 0:
             text_value_quadtuple.append(
                 (
                     "Random seeding",
-                    self._history._best_per_type[CandidateType.RANDOM_SEEDING],
-                    self._history._amount_per_type[CandidateType.RANDOM_SEEDING],
-                    self._history._cancelled_per_type[CandidateType.RANDOM_SEEDING],
-                    self._history._seeding_time,
+                    self._run_history._best_per_type[CandidateType.RANDOM_SEEDING],
+                    self._run_history._amount_per_type[CandidateType.RANDOM_SEEDING],
+                    self._run_history._cancelled_per_type[CandidateType.RANDOM_SEEDING],
+                    self._run_history._seeding_time,
                 )
             )
-        if self._history._amount_per_type[CandidateType.NEIGHBORHOOD_SAMPLING] > 0:
+        if self._run_history._amount_per_type[CandidateType.NEIGHBORHOOD_SAMPLING] > 0:
             text_value_quadtuple.append(
                 (
                     "Neighborhood sampling",
-                    self._history._best_per_type[CandidateType.NEIGHBORHOOD_SAMPLING],
-                    self._history._amount_per_type[CandidateType.NEIGHBORHOOD_SAMPLING],
-                    self._history._cancelled_per_type[
+                    self._run_history._best_per_type[
                         CandidateType.NEIGHBORHOOD_SAMPLING
                     ],
-                    self._history._neighbor_time,
+                    self._run_history._amount_per_type[
+                        CandidateType.NEIGHBORHOOD_SAMPLING
+                    ],
+                    self._run_history._cancelled_per_type[
+                        CandidateType.NEIGHBORHOOD_SAMPLING
+                    ],
+                    self._run_history._neighbor_time,
                 )
             )
         text_value_quadtuple.append(
             (
                 "Total",
-                self._history._best_f,
-                len(self._history._log_candidate_f),
-                self._history._total_cancelled,
-                self._history._total_time,
+                self._run_history._best_f,
+                len(self._run_history._log_candidate_f),
+                self._run_history._total_cancelled,
+                self._run_history._total_time,
             )
         )
         text_list = []
@@ -656,7 +870,7 @@ class Search:
         text_list.insert(0, ["Mode", "Best f", "Steps", "Cancelled", "Time"])
         text_list.insert(1, ["-----------", "---", "---", "---", "---"])
         text_list.insert(-1, ["-----------", "---", "---", "---", "---"])
-        if self._history._total_cancelled == 0:
+        if self._run_history._total_cancelled == 0:
             # No candidate was cancelled so let's not show this column
             for t in text_list:
                 t.pop(3)
@@ -697,7 +911,7 @@ class Search:
         self._canceller = canceller
         if self._canceller is not None:
             self._canceller.direction = self._direction
-        self._history = History(self._direction)
+        self._run_history = LocalHistory(self._direction)
         self._ignore_nans = ignore_nans
 
         if self._has_changed(objective_function, kwargs):
@@ -710,43 +924,27 @@ class Search:
             )
         elif self._best_f is not None:
             # not first run and objective function stayed the same
-            self._history.hot_start(self._best_f)
+            self._run_history.hot_start(self._best_f)
 
-    def _save_best_as_pickle(self):
-        print("SAVED")
-        try:
-            if self._task_executor is not None:
-                self._task_executor.shutdown()
-        except:
-            pass
-        # if current_runtime > 10 * 60 and self.best_f is not None:
-        #     from datetime import datetime
-        #     import pickle
-        #
-        #     os.makedirs("aborted_searches", exist_ok=True)
-        #     fname = os.path.join(
-        #         "aborted_searches", datetime.now().strftime("%Y%m%d_%H%M%S.pkl")
-        #     )
-        #     if not os.path.isfile(fname):
-        #         with open(fname, "wb") as f:
-        #             pickle.dump(self._best_solution, f)
-        #         print(
-        #             f"Current best candidate with {self.best_f:0.3g} saved in file '{fname}'"
-        #         )
-        #         print(
-        #             f"Retrieve it with\n\nimport pickle\n\nwith open('{fname}','rb') as f:\n  restored = pickle.load(f)\n\n"
-        #         )
+    def _force_termination(self):
+        # This is actually not needed but let's keep it for potential future use
+        if self._task_executor is not None:
+            self._task_executor.shutdown()
 
-    def _should_cache(self):
-        # Method to check if the parameter space contains a numpy float array
-        # if so, then the default setting is to not use a rejection cache as there
-        # are only very few duplicates expected, which is not worth the hashing overhead
-        has_float_np_array = False
-        for (k, v) in self._params.items():
-            if isinstance(v, FloatParameter):
-                if v._shape is not None and len(v._shape) > 0:
-                    has_float_np_array = True
-        return not has_float_np_array
+    def _hook_callbacks(self, callbacks):
+        if callbacks is None:
+            return
+        if not isinstance(callbacks, list):
+            # Convert single callback object to a list of size 1
+            callbacks = [callbacks]
+        self._hooked_callbacks.extend(callbacks)
+        for c in self._hooked_callbacks:
+            c.on_search_start()
+
+    def _unhook_callbacks(self):
+        for c in self._hooked_callbacks:
+            c.on_search_end(self.best, self.best_f, self._history)
+        self._hooked_callbacks.clear()
 
     def run(
         self,
@@ -755,49 +953,51 @@ class Search:
         timeout: Union[int, float, str, None] = None,
         seeding_steps: Optional[int] = None,
         seeding_timeout: Union[int, float, str, None] = None,
+        seeding_ratio: Optional[float] = None,
         canceller=None,
         n_jobs=1,
         verbose=1,
         ignore_nans=False,
         mp_backend="auto",
-        enable_rejection_cache=None,
+        enable_rejection_cache=True,
+        callbacks: Optional[list] = None,
+        start_temperature: float = 0.7,
+        end_temperature: float = 0.3,
         kwargs=None,
     ):
         if kwargs is None:
             kwargs = {}
 
-        seeding_schedule = ScheduledRun(seeding_steps, seeding_timeout)
-        schedule = ScheduledRun(max_steps, timeout)
-        if enable_rejection_cache is None:
-            enable_rejection_cache = self._should_cache()
+        schedule = ScheduledRun(
+            max_steps,
+            timeout,
+            seeding_steps=seeding_steps,
+            seeding_timeout=seeding_timeout,
+            seeding_ratio=seeding_ratio,
+            start_temperature=start_temperature,
+            end_temperature=end_temperature,
+        )
         self._f_cache.set_enable(enable_rejection_cache)
         self._signal_listener.register_signal(
-            schedule.signal_gradually_quit, self._save_best_as_pickle
+            schedule.signal_gradually_quit, self._force_termination
         )
         if verbose > 0:
             print(f"Search is scheduled for {schedule.to_total_str()}")
         if n_jobs != 1:
             self._task_executor = TaskManager(n_jobs, mp_backend)
-
-        # import signal
-
-        def handler(signum, frame):
-            print("Signal handler called with signal", signum)
-            # raise OSError("Couldn't open device!")
-
-            # Set the signal handler and a 5-second alarm
-
-        # signal.signal(signal.SIGINT, handler)
+            if self._task_executor.n_jobs == 1:
+                self._task_executor = None  # '1x per-gpu' on single GPU machines -> No need for multiprocess overhead
 
         pbar = tqdm(total=schedule.total_units, disable=verbose <= 0)
+        self._hook_callbacks(callbacks)
+        schedule.increment_step()
 
         self._initialize_for_new_run(objective_function, kwargs, canceller, ignore_nans)
-        schedule.increment_step()
 
         pbar.n = round(schedule.current_units, 1)
         self._update_pbar(pbar)
 
-        self._history.start_manually_added_phase()
+        self._run_history.start_manually_added_phase()
         self._wait_for_free_executor()  #  Before entering the loop, let's wait until we can run at least one candidate
         while len(self._manually_queued_candidates) > 0 and not schedule.is_timeout():
             candidate = self._manually_queued_candidates.pop(-1)
@@ -808,13 +1008,12 @@ class Search:
             self._update_pbar(pbar)
             self._wait_for_free_executor()  # Before checking the loop condition wait for at least one job to finish
 
-        if schedule.is_endless and seeding_schedule.is_endless:
-            # In endless mode we do 80% neighborhood sampling and 20% random seeding
-            self._history.start_endless_phase()
+        if schedule.is_mixed_endless:
+            endless_seeding_ratio = seeding_ratio if seeding_ratio is not None else 0.2
+            self._run_history.start_endless_phase()
             self._wait_for_free_executor()  # Before entering the loop, let's wait until we can run at least one candidate
             while not schedule.is_timeout():  # Wait for SIG_INT (Ctrl+C)
-                if np.random.default_rng().random() > 0.8:
-                    seeding_schedule.increment_step()
+                if np.random.default_rng().random() < endless_seeding_ratio:
                     schedule.increment_step()
                     candidate = self.sample_solution()
                     if candidate not in self._f_cache:
@@ -826,9 +1025,7 @@ class Search:
                             kwargs,
                         )
                 else:
-                    candidate = self.mutate_from_best(
-                        temperature=np.random.default_rng().uniform(0.1, 0.9)
-                    )
+                    candidate = self.mutate_from_best(temperature=schedule.temperature)
                     if candidate not in self._f_cache:
                         # If candidate was already run before, let's skip this step
                         self._submit_candidate(
@@ -842,16 +1039,12 @@ class Search:
                 self._wait_for_free_executor()  # Before checking the loop condition wait for at least one job to finish
 
             self._wait_for_running_jobs()
-            self._history.end_endless_phase(0.8)
+            self._run_history.end_endless_phase(endless_seeding_ratio)
         else:
             # In scheduled mode we first to random seeding and then improvement
-            self._history.start_seeding_phase()
+            self._run_history.start_seeding_phase()
             self._wait_for_free_executor()  # Before entering the loop, let's wait until we can run at least one candidate
-            while (
-                not schedule.is_timeout()
-                and not seeding_schedule.is_timeout()
-                and not seeding_schedule.is_endless
-            ):
+            while not schedule.is_seeding_timeout() and not schedule.is_timeout():
                 candidate = self.sample_solution()
                 if candidate not in self._f_cache:
                     # If candidate was already run before, let's skip this step
@@ -862,12 +1055,11 @@ class Search:
                         kwargs,
                     )
                 schedule.increment_step()
-                seeding_schedule.increment_step()
                 pbar.n = round(schedule.current_units, 1)
                 self._update_pbar(pbar)
                 self._wait_for_free_executor()  # Before checking the loop condition wait for at least one job to finish
 
-            self._history.start_neighbor_phase()
+            self._run_history.start_neighbor_phase()
             schedule.reset_temperature()
             self._wait_for_free_executor()  # Before entering the loop, let's wait until we can run at least one candidate
 
@@ -888,15 +1080,15 @@ class Search:
                     current_temperature *= (
                         1.05  # increase temperature by 5% if we found a duplicate
                     )
-
                 schedule.increment_step()
                 pbar.n = round(schedule.current_units, 1)
                 self._update_pbar(pbar)
                 self._wait_for_free_executor()  # Before checking the loop condition wait for at least one job to finish
 
             self._wait_for_running_jobs()
-            self._history.end_neighbor_phase()
+            self._run_history.end_neighbor_phase()
 
+        self._unhook_callbacks()
         self._signal_listener.unregister_signal()
         pbar.n = schedule.total_units
         pbar.refresh()
@@ -908,12 +1100,11 @@ class Search:
 
         if verbose > 0:
             self.pretty_print_results()
-        self._reported_history = self._history.as_dict()
         return self._best_solution
 
     @property
     def history(self):
-        return self._reported_history
+        return self._history
 
     @property
     def best(self):
