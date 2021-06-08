@@ -25,7 +25,7 @@ setup(
     author="Mathias Lechner and the PyHopper team",
     author_email="mlech26l@gmail.com",
     license="Apache Software License (Apache 2.0)",
-    install_requires=["packaging", "future", "numpy", "loky", "tqdm", "psutil"],
+    install_requires=["packaging", "future", "numpy", "tqdm", "psutil"],
     classifiers=[
         "Programming Language :: Python",
         "Programming Language :: Python :: 3.6",

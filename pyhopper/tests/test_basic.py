@@ -228,5 +228,85 @@ def test_float_constraints():
     r1 = search.run(check_constraints_of, max_steps=50, seeding_steps=30)
 
 
+def of_freeze1(param):
+    assert param["a"] == 5
+    return param["a"] * param["b"]
+
+
+def of_freeze2(param):
+    assert param["a"] in [5, -20]
+    return param["a"] * param["b"]
+
+
+def of_freeze3(param):
+    assert param["a"] in [5, 20], f"{param['a']}"
+    return param["a"] * param["b"]
+
+
+def of_freeze4(param):
+    return param["a"] * param["b"]
+
+
+def test_freeze():
+    search = pyhopper.Search(
+        {
+            "a": pyhopper.int(-10, 10, init=5),
+            "b": pyhopper.float(0, 1),
+        },
+        direction="max",
+    )
+    search.freeze("a")
+    with pytest.raises(ValueError):
+        search.freeze("b")
+    with pytest.raises(ValueError):
+        search.freeze("c")
+
+    search.run(of_freeze1, max_steps=15, seeding_steps=10)
+    search.freeze("a", -20)
+    search.run(of_freeze2, max_steps=15, seeding_steps=10)
+    search.freeze("a", 20)
+    search.run(of_freeze3, max_steps=15, seeding_steps=10)
+    search.unfreeze("a")
+    with pytest.raises(ValueError):
+        search.unfreeze("b")
+    with pytest.raises(ValueError):
+        search.unfreeze("a")
+    search.run(of_freeze4, max_steps=15, seeding_steps=10)
+
+
+def of_add(param):
+    return param["a"] * param["b"]
+
+
+def test_add_m():
+    search = pyhopper.Search(
+        {
+            "a": pyhopper.int(-10, 10, init=5),
+            "b": pyhopper.float(0, 1),
+        },
+        direction="max",
+    )
+    search += {"b": 2}
+    search.sweep("a", [2, 5])
+    search.run(of_add, max_steps=15, seeding_steps=10)
+
+
+def of_set(param):
+    assert param["a"] == 3
+    return param["a"] * param["b"]
+
+
+def test_add_m():
+    search = pyhopper.Search(
+        {
+            "a": pyhopper.int(-10, 10, init=5),
+            "b": pyhopper.float(0, 1),
+        },
+        direction="max",
+    )
+    search["a"] = 3
+    search.run(of_set, max_steps=15, seeding_steps=10)
+
+
 if __name__ == "__main__":
-    test_choice_register()
+    test_freeze()
