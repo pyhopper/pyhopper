@@ -17,11 +17,11 @@ from setuptools import setup, find_packages
 
 setup(
     name="pyhopper",
-    version="0.0.11",
+    version="0.0.12",
     python_requires=">3.6.0",
     packages=find_packages(),  # include/exclude arguments take * as wildcard, . for any sub-package names
     description="TODO",
-    url="https://github.com/PyHopper/PyHopper",
+    url="https://github.com/pyhopper/pyhopper",
     author="Mathias Lechner and the PyHopper team",
     author_email="mlech26l@gmail.com",
     license="Apache Software License (Apache 2.0)",
