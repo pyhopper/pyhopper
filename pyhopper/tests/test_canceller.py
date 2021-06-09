@@ -21,6 +21,31 @@ import pyhopper
 import pyhopper.cancellers
 
 
+def of_inc(param):
+    return param["a"] + param["b"]
+
+
+def test_simple_inc_dec():
+    search = pyhopper.Search(
+        {
+            "a": pyhopper.float(lb=0, ub=10, init=2),
+            "b": pyhopper.float(lb=0, ub=10, init=2),
+        }
+    )
+
+    r1 = search.run(of_inc, direction="max", max_steps=10)
+    assert of_inc(r1) >= 4
+    search = pyhopper.Search(
+        {
+            "a": pyhopper.float(lb=0, ub=10, init=2),
+            "b": pyhopper.float(lb=0, ub=10, init=2),
+        }
+    )
+
+    r1 = search.run(of_inc, direction="min", max_steps=10)
+    assert of_inc(r1) <= 4
+
+
 def of(param, x=None):
     for i in range(10):
         yield np.random.default_rng().normal() - np.square(param["lr"] - 4) * 10
@@ -33,13 +58,20 @@ def test_simple1():
                 lb=0,
                 ub=10,
             )
-        },
-        direction="max",
+        }
     )
 
-    r1 = search.run(of, max_steps=10)
-    r1 = search.run(of, max_steps=100, canceller=pyhopper.cancellers.TopK(5))
-    r1 = search.run(of, max_steps=200, n_jobs=5, canceller=pyhopper.cancellers.TopK(5))
+    r1 = search.run(of, direction="max", max_steps=10)
+    r1 = search.run(
+        of, direction="max", max_steps=100, canceller=pyhopper.cancellers.TopK(5)
+    )
+    r1 = search.run(
+        of,
+        direction="max",
+        max_steps=200,
+        n_jobs=5,
+        canceller=pyhopper.cancellers.TopK(5),
+    )
 
 
 def test_simple2():
@@ -49,21 +81,25 @@ def test_simple2():
                 lb=0,
                 ub=10,
             )
-        },
-        direction="max",
+        }
     )
 
     with pytest.raises(ValueError):
-        search = pyhopper.Search(
-            {"lr": pyhopper.float(-1)},
-            direction="max",
-        )
-    r1 = search.run(of, max_steps=10)
-    r1 = search.run(of, max_steps=100, canceller=pyhopper.cancellers.Quantile(50))
+        search = pyhopper.Search({"lr": pyhopper.float(-1)})
+    r1 = search.run(of, direction="max", max_steps=10)
     r1 = search.run(
-        of, max_steps=100, n_jobs=5, canceller=pyhopper.cancellers.Quantile(90)
+        of, direction="max", max_steps=100, canceller=pyhopper.cancellers.Quantile(50)
     )
-    r1 = search.run(of, max_steps=100, canceller=pyhopper.cancellers.Quantile(0.5))
+    r1 = search.run(
+        of,
+        direction="max",
+        max_steps=100,
+        n_jobs=5,
+        canceller=pyhopper.cancellers.Quantile(90),
+    )
+    r1 = search.run(
+        of, direction="max", max_steps=100, canceller=pyhopper.cancellers.Quantile(0.5)
+    )
 
 
 of_counter = 0
@@ -84,10 +120,9 @@ def test_exception1():
                 lb=0,
                 ub=10,
             )
-        },
-        direction="max",
+        }
     )
-    r1 = search.run(of_cancel_first, max_steps=10)
+    r1 = search.run(of_cancel_first, direction="max", max_steps=10)
     assert "lr" in r1.keys()
 
 
@@ -108,27 +143,27 @@ def test_nan():
                 lb=0,
                 ub=10,
             )
-        },
-        direction="max",
+        }
     )
     with pytest.raises(ValueError):
         of_counter = 0
-        r1 = search.run(of_nan, max_steps=10)
+        r1 = search.run(of_nan, direction="max", max_steps=10)
     of_counter = 0
-    r1 = search.run(of_nan, ignore_nans=True, max_steps=10)
+    r1 = search.run(of_nan, direction="max", ignore_nans=True, max_steps=10)
     with pytest.raises(ValueError):
         of_counter = 0
         r1 = search.run(
             of_nan,
+            direction="max",
             ignore_nans=True,
             max_steps=100,
             canceller=pyhopper.cancellers.Quantile(0.5),
         )
     with pytest.raises(ValueError):
         of_counter = 0
-        r1 = search.run(of_nan, max_steps=200, n_jobs=5)
+        r1 = search.run(of_nan, direction="max", max_steps=200, n_jobs=5)
     of_counter = 0
-    r1 = search.run(of_nan, ignore_nans=True, n_jobs=5, max_steps=300)
+    r1 = search.run(of_nan, direction="max", ignore_nans=True, n_jobs=5, max_steps=300)
     of_counter = 0
     assert "lr" in r1.keys()
 
@@ -149,13 +184,12 @@ def test_nan_simple():
                 lb=0,
                 ub=10,
             )
-        },
-        direction="max",
+        }
     )
     of_counter = 0
-    r1 = search.run(of_nan, ignore_nans=True, max_steps=10)
+    r1 = search.run(of_nan, direction="max", ignore_nans=True, max_steps=10)
     of_counter = 0
-    r1 = search.run(of_nan2, ignore_nans=True, n_jobs=5, max_steps=200)
+    r1 = search.run(of_nan2, direction="max", ignore_nans=True, n_jobs=5, max_steps=200)
 
 
 def test_topk():

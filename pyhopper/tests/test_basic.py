@@ -61,12 +61,11 @@ def test_simple1():
                 lb=1e-5,
                 ub=1e-3,
             )
-        },
-        direction="max",
+        }
     )
 
-    r1 = search.run(of, max_steps=10)
-    r2 = search.run(of, max_steps=50, kwargs={"x": 1})
+    r1 = search.run(of, direction="max", max_steps=10)
+    r2 = search.run(of, direction="max", max_steps=50, kwargs={"x": 1})
     assert "lr" in r1.keys()
     assert "lr" in r2.keys()
 
@@ -79,12 +78,9 @@ def of_array(param, x=None):
 
 
 def test_nparray():
-    search = pyhopper.Search(
-        {"lr": pyhopper.float(lb=-10, ub=10, shape=(10, 10))},
-        direction="max",
-    )
+    search = pyhopper.Search({"lr": pyhopper.float(lb=-10, ub=10, shape=(10, 10))})
 
-    param = search.run(of_array, max_steps=20)
+    param = search.run(of_array, direction="max", max_steps=20)
     assert "lr" in param.keys()
     assert np.all(param["lr"] >= -10)
     assert np.all(param["lr"] <= 10)
@@ -106,17 +102,16 @@ def test_float_register():
             "np10": pyhopper.float(np.zeros(10), np.ones(10)),
             "lr5": pyhopper.float(0.0001, 1, log=True, init=0.1),
             "lr6": pyhopper.float(1),
-        },
-        direction="max",
+        }
     )
-    r1 = search.run(ofall, max_steps=10)
+    r1 = search.run(ofall, direction="max", max_steps=10)
     assert "lr" in r1.keys()
     assert "lr2" in r1.keys()
     assert "lr3" in r1.keys()
     assert "lr4" in r1.keys()
     assert "lr5" in r1.keys()
     search.freeze("lr3")
-    r2 = search.run(ofall, timeout=0.5)
+    r2 = search.run(ofall, direction="max", timeout=0.5)
     assert "lr" in r1.keys()
     assert "lr2" in r1.keys()
     assert "lr3" in r1.keys()
@@ -127,10 +122,7 @@ def test_float_register():
 
 def test_float_register_name_negative_single_bound():
     with pytest.raises(ValueError):
-        search = pyhopper.Search(
-            {"lr": pyhopper.float(-1)},
-            direction="max",
-        )
+        search = pyhopper.Search({"lr": pyhopper.float(-1)})
 
 
 def test_int_register():
@@ -148,10 +140,9 @@ def test_int_register():
             "np10": pyhopper.int(init=np.zeros(10)),
             "mul8": pyhopper.int(init=np.zeros(10), multiple_of=8),
             "mul8_t": pyhopper.int(8, 128, multiple_of=8),
-        },
-        direction="max",
+        }
     )
-    r1 = search.run(ofall, seeding_steps=5, max_steps=10)
+    r1 = search.run(ofall, direction="max", seeding_steps=5, max_steps=10)
     assert "lr" in r1.keys()
     assert "lr2" in r1.keys()
     assert "lr3" in r1.keys()
@@ -159,15 +150,9 @@ def test_int_register():
 
 def test_int_register_name_negative_single_bound():
     with pytest.raises(ValueError):
-        search = pyhopper.Search(
-            {"lr": pyhopper.int(-5)},
-            direction="max",
-        )
+        search = pyhopper.Search({"lr": pyhopper.int(-5)})
     with pytest.raises(ValueError):
-        search = pyhopper.Search(
-            {"lr": pyhopper.int(0)},
-            direction="min",
-        )
+        search = pyhopper.Search({"lr": pyhopper.int(0)})
 
 
 def test_choice_register():
@@ -176,11 +161,10 @@ def test_choice_register():
             "lr": pyhopper.choice([1, 2, 3]),
             "lr2": pyhopper.choice(["a", "b", "c"], "a"),
             "lr3": pyhopper.choice(["a", "b", "c"], is_ordinal=True),
-        },
-        direction="max",
+        }
     )
     # r1 = search.run(of, seeding_timeout="1h", timeout="1s", n_jobs=2)
-    r1 = search.run(of, seeding_timeout="1h", max_steps=10, n_jobs=5)
+    r1 = search.run(of, direction="max", seeding_timeout="1h", max_steps=10, n_jobs=5)
     assert "lr" in r1.keys()
 
 
@@ -193,11 +177,10 @@ def test_parallelization():
     search = pyhopper.Search(
         {
             "lr": pyhopper.choice([1, 2, 3]),
-        },
-        direction="max",
+        }
     )
     start = time.time()
-    r1 = search.run(of, seeding_timeout="1h", max_steps=10, n_jobs=5)
+    r1 = search.run(of, direction="max", seeding_timeout="1h", max_steps=10, n_jobs=5)
     assert time.time() - start < 3
 
 
@@ -222,10 +205,11 @@ def test_float_constraints():
             "log1": pyhopper.float(0.00001, 1, log=True),
             "e36": pyhopper.float(1e-6, 1e-3, log=True),
             "g1": pyhopper.float(1e-6, 1e-3, log=True, precision=1),
-        },
-        direction="min",
+        }
     )
-    r1 = search.run(check_constraints_of, max_steps=50, seeding_steps=30)
+    r1 = search.run(
+        check_constraints_of, direction="min", max_steps=50, seeding_steps=30
+    )
 
 
 def of_freeze1(param):
@@ -252,8 +236,7 @@ def test_freeze():
         {
             "a": pyhopper.int(-10, 10, init=5),
             "b": pyhopper.float(0, 1),
-        },
-        direction="max",
+        }
     )
     search.freeze("a")
     with pytest.raises(ValueError):
@@ -261,17 +244,17 @@ def test_freeze():
     with pytest.raises(ValueError):
         search.freeze("c")
 
-    search.run(of_freeze1, max_steps=15, seeding_steps=10)
+    search.run(of_freeze1, direction="max", max_steps=15, seeding_steps=10)
     search.freeze("a", -20)
-    search.run(of_freeze2, max_steps=15, seeding_steps=10)
+    search.run(of_freeze2, direction="max", max_steps=15, seeding_steps=10)
     search.freeze("a", 20)
-    search.run(of_freeze3, max_steps=15, seeding_steps=10)
+    search.run(of_freeze3, direction="max", max_steps=15, seeding_steps=10)
     search.unfreeze("a")
     with pytest.raises(ValueError):
         search.unfreeze("b")
     with pytest.raises(ValueError):
         search.unfreeze("a")
-    search.run(of_freeze4, max_steps=15, seeding_steps=10)
+    search.run(of_freeze4, direction="max", max_steps=15, seeding_steps=10)
 
 
 def of_add(param):
@@ -283,12 +266,11 @@ def test_add_m():
         {
             "a": pyhopper.int(-10, 10, init=5),
             "b": pyhopper.float(0, 1),
-        },
-        direction="max",
+        }
     )
     search += {"b": 2}
     search.sweep("a", [2, 5])
-    search.run(of_add, max_steps=15, seeding_steps=10)
+    search.run(of_add, direction="max", max_steps=15, seeding_steps=10)
 
 
 def of_set(param):
@@ -301,11 +283,10 @@ def test_add_m():
         {
             "a": pyhopper.int(-10, 10, init=5),
             "b": pyhopper.float(0, 1),
-        },
-        direction="max",
+        }
     )
     search["a"] = 3
-    search.run(of_set, max_steps=15, seeding_steps=10)
+    search.run(of_set, direction="max", max_steps=15, seeding_steps=10)
 
 
 if __name__ == "__main__":

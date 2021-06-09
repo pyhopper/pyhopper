@@ -111,6 +111,13 @@ class ScheduledRun:
         self._step += 1
 
     @property
+    def unit(self):
+        if self._timeout is not None:
+            return "sec"
+        else:
+            return "steps"
+
+    @property
     def step(self):
         return self._step
 
@@ -528,36 +535,21 @@ class Search:
     def __init__(
         self,
         parameters: dict,
-        direction: str = "maximize",
         keep_parameter_history: bool = True,
     ):
         """
         Creates a new search object
         :param parameters: dict defining the search space
-        :param direction: String defining if the objective function should be minimized or maximize
-            (admissible values are 'min','minimize', or 'max','maximize')
         :param keep_parameter_history: Whether to keep a copy of all evaluated parameters for later analysis.
             In case the parameter space contain large objects (e.g., Numpy arrays), it is recommended to set this
             value to False to reduce the memory footprint.
         """
-        if direction not in [
-            "maximize",
-            "maximise",
-            "max",
-            "minimize",
-            "minimise",
-            "min",
-        ]:
-            raise ValueError(
-                f"Unknown direction '{direction}', must bei either 'maximize' or 'minimize'"
-            )
-        self._direction = direction.lower()[0:3]  # only save first 3 chars
-
         self._params = {}
         self._best_solution = {}
         self._best_f = None
         self._canceller = None
         self._ignore_nans = None
+        self._direction = None
 
         self._hooked_callbacks = []
         self._history = History(keep_parameter_history)
@@ -801,7 +793,7 @@ class Search:
         )
         self._run_history.append(candidate_type, runtime, candidate_result.value)
 
-    def _has_changed(self, objective_function, kwargs):
+    def _has_f_or_args_changed(self, objective_function, kwargs):
         hash_code = id(objective_function)
         for k, v in kwargs.items():
             hash_code += id(k) + id(v)
@@ -918,8 +910,22 @@ class Search:
             pbar.set_description(f"Current best {self._best_f:0.3g}")
 
     def _initialize_for_new_run(
-        self, objective_function, kwargs, canceller, ignore_nans
+        self, objective_function, direction, kwargs, canceller, ignore_nans
     ):
+        if direction not in [
+            "maximize",
+            "maximise",
+            "max",
+            "minimize",
+            "minimise",
+            "min",
+        ]:
+            raise ValueError(
+                f"Unknown direction '{direction}', must bei either 'maximize' or 'minimize'"
+            )
+        direction = direction.lower()[0:3]  # only save first 3 chars
+        has_direction_changed = direction != self._direction
+        self._direction = direction
         self._canceller = canceller
         if self._canceller is not None:
             self._canceller.direction = self._direction
@@ -927,7 +933,10 @@ class Search:
         self._ignore_nans = ignore_nans
 
         self._fill_missing_init_values()
-        if self._has_changed(objective_function, kwargs):
+        if (
+            self._has_f_or_args_changed(objective_function, kwargs)
+            or has_direction_changed
+        ):
             # not a single solution evaluated yet
             self._best_f = None  # Delete current best solution objective function value
             self._f_cache.clear()  # Reset cache
@@ -958,6 +967,7 @@ class Search:
     def run(
         self,
         objective_function,
+        direction: str = "maximize",
         max_steps: Optional[int] = None,
         timeout: Union[int, float, str, None] = None,
         seeding_steps: Optional[int] = None,
@@ -974,6 +984,10 @@ class Search:
         end_temperature: float = 0.3,
         kwargs=None,
     ):
+        """
+        :param direction: String defining if the objective function should be minimized or maximize
+            (admissible values are 'min','minimize', or 'max','maximize')
+        """
         if kwargs is None:
             kwargs = {}
 
@@ -1000,10 +1014,13 @@ class Search:
         pbar = tqdm(
             total=schedule.total_units,
             disable=verbose <= 0,
+            unit=schedule.unit,
         )
         self._hook_callbacks(callbacks)
 
-        self._initialize_for_new_run(objective_function, kwargs, canceller, ignore_nans)
+        self._initialize_for_new_run(
+            objective_function, direction, kwargs, canceller, ignore_nans
+        )
         if self._best_f is None:
             # Evaluate initial guess, this gives the user some estimate of how much PyHopper could tune the parameters
             self._submit_candidate(
