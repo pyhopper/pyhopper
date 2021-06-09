@@ -63,7 +63,9 @@ class QuantileCanceller(EarlyCanceller):
 
         if len(partial_results) > self.n:
             raise ValueError(
-                f"Runtime error! Partial results has length {len(partial_results)}, while previous calls had at most {self.n}. Make sure the objective function yield the same amount of partial results on every call!"
+                f"Runtime error! Partial results has length {len(partial_results)}, "
+                f"while previous calls had at most {self.n}. "
+                "Make sure the objective function yield the same amount of partial results on every call!"
             )
 
         for i in range(len(partial_results)):
@@ -106,7 +108,9 @@ class TopKCanceller(EarlyCanceller):
             return
         elif len(partial_results) > self.n:
             raise ValueError(
-                f"Runtime error! Partial results has length {len(partial_results)}, while previous calls had at most {self.n}. Make sure the objective function yield the same amount of partial results on every call!"
+                f"Runtime error! Partial results has length {len(partial_results)}, "
+                f"while previous calls had at most {self.n}. "
+                "Make sure the objective function yield the same amount of partial results on every call!"
             )
 
         of = partial_results[-1]

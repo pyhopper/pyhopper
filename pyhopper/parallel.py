@@ -15,10 +15,13 @@ import signal
 import time
 
 import os
-from types import FunctionType, GeneratorType
+from types import GeneratorType
 import numpy as np
 import sys
 import gc
+import subprocess
+from xml.etree.ElementTree import fromstring
+
 
 _signals_received = 0
 
@@ -78,29 +81,66 @@ class CancelEvaluation(Exception):
     pass
 
 
-def get_gpu_list():
-    if "CUDA_VISIBLE_DEVICES" in os.environ.keys():
-        gpus_list = [s for s in os.environ["CUDA_VISIBLE_DEVICES"].split(",")]
-        return gpus_list
-    import subprocess
+def parse_nvidia_smi():
+    """
+    Parse the IDs, names and compute mode of GPUs on the current machine
+    :return: A triple of a list of all device IDs, a dict mapping device ID to GPU name,
+    and a dict mapping device ID to a bool specifying if the device is configured in the Default compute mode.
+    returns (None,None,None) if the output of nvidia-smi cannot be parsed
+    """
+    res = subprocess.run("nvidia-smi -q -x", shell=True, stdout=subprocess.PIPE)
+    res = res.stdout.decode("utf-8")
+    if not res.startswith("<?xml"):
+        return None, None, None
+    root = fromstring(res)
+    gpu_ids = []
+    gpu_names = {}
+    gpu_default_modes = {}
+    for gpu_node in root.findall("gpu"):
+        gpu_id = gpu_node.find("minor_number").text
+        gpu_ids.append(gpu_id)
+        compute_mode = gpu_node.find("compute_mode").text
+        gpu_name = gpu_node.find("product_name").text
+        gpu_names[gpu_id] = gpu_name
+        gpu_default_modes[gpu_id] = compute_mode == "Default"
+        # print(f"GPU [{gpu_id}]: {gpu_name} in mode {compute_mode}")
+    return gpu_ids, gpu_names, gpu_default_modes
 
-    res = subprocess.run("nvidia-smi -L", shell=True, stdout=subprocess.PIPE)
-    gpus = res.stdout.decode("utf-8").split("\n")
-    gpu_list = []
-    # TODO: Maybe always check for E. Process
-    # TODO: maybe use xml or other output format of nvidia-smi
-    is_process_exclusive = False
-    for gpu in gpus:
-        if gpu.startswith("GPU"):
-            gpu_list.append(str(len(gpu_list)))
-        if "E. Process" in gpu:
-            is_process_exclusive = True
-    return gpu_list
+
+def get_gpu_list():
+    gpu_ids, gpu_names, gpu_default_modes = parse_nvidia_smi()
+    if "CUDA_VISIBLE_DEVICES" in os.environ.keys():
+        # User specified which GPUs to use (could be a subset of the GPUs on the machine)
+        if gpu_ids is None:
+            print(
+                "Warning: Could not parse output of 'nvidia-smi'. This probably means you need to upgrade the nvidia "
+                "device drivers or reboot the machine. "
+            )
+        gpus_used = [s for s in os.environ["CUDA_VISIBLE_DEVICES"].split(",")]
+    else:
+        if gpu_ids is None:
+            raise ValueError(
+                "Error: Could not parse output of 'nvidia-smi'. Either specify the GPU ids via the "
+                "'CUDA_VISIBLE_DEVICES' environment variable, or upgrade the nvidia device drivers and reboot the "
+                "machine. "
+            )
+        # No explicit GPU defined -> let's use them all
+        gpus_used = gpu_ids
+    supports_multi_instance = True
+    if gpu_ids is not None:
+        for gpu in gpus_used:
+            if not gpu_default_modes[gpu]:
+                supports_multi_instance = False
+    return gpus_used, supports_multi_instance
 
 
 class GPUAllocator:
     def __init__(self, factor):
-        physical_gpus = get_gpu_list()
+        physical_gpus, supports_multi_instance = get_gpu_list()
+        if factor > 1 and not supports_multi_instance:
+            raise ValueError(
+                "Error: GPUs are configured in Process Exclusive mode. Cannot run multiple training processes per GPU."
+            )
         virtual_gpus = []
         for i in range(factor):
             virtual_gpus.extend(physical_gpus)
@@ -134,9 +174,9 @@ def dummy_signal_handler(sig, frame):
     global _signals_received
     _signals_received += 1
 
-    if _signals_received >= 3:
-        time.sleep(1.0)
-        os.kill()
+    # if _signals_received >= 3:
+    #     time.sleep(1.0)
+    # os.kill()
 
 
 def execute(objective_function, candidate, canceller, kwargs, remote=False, gpu=None):
@@ -233,7 +273,8 @@ class TaskManager:
                 self._queue_max = n_jobs
             else:
                 raise ValueError(
-                    f"Cannot use mp_backend ```{mp_backend}``` when using per_gpu mode. Valid options are 'dask-cuda' and 'multiprocessing' ('auto' defaults to 'multiprocessing')"
+                    f"Cannot use mp_backend ```{mp_backend}``` when using per_gpu mode. "
+                    "Valid options are 'dask-cuda' and 'multiprocessing' ('auto' defaults to 'multiprocessing')"
                 )
         elif isinstance(n_jobs, int):
             if mp_backend == "auto":
@@ -243,7 +284,8 @@ class TaskManager:
             self._queue_max = n_jobs
         else:
             raise ValueError(
-                "Could not parse ```n_jobs``` argument. Valid options are positive integers, -1 (all CPU cores), 'per_gpu', and '[int] per_gpu'"
+                "Could not parse ```n_jobs``` argument. Valid options are positive integers, -1 (all CPU cores), "
+                "'per_gpu', and '[int] per_gpu' "
             )
 
         if mp_backend == "dask-cuda":
@@ -251,7 +293,7 @@ class TaskManager:
             try:
                 from dask_cuda import LocalCUDACluster
                 from dask.distributed import Client, wait
-            except:
+            except ImportError:
                 raise ValueError(
                     "Could not import cuda-dask. Make sure dask is installed ```pip3 install -U cuda-dask```. "
                     + str(sys.exc_info()[0])
@@ -277,7 +319,7 @@ class TaskManager:
             # Experimental
             try:
                 from dask.distributed import Client, LocalCluster, wait
-            except:
+            except ImportError:
                 raise ValueError(
                     "Could not import dask. Make sure dask is installed ```pip3 install -U dask[distributed]```."
                     + str(sys.exc_info()[0])

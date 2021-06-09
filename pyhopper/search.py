@@ -12,8 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
-
 from .cache import EvaluationCache
 from .parameters import (
     FloatParameter,
@@ -24,8 +22,7 @@ from .parameters import (
     FixedParameter,
     Parameter,
 )
-from .parallel import execute, TaskManager, EvaluationResult, SignalListener
-from .callbacks.callbacks import Callback
+from .parallel import execute, TaskManager, SignalListener
 import numpy as np
 from typing import Union, Optional, Any, Tuple
 from types import FunctionType
@@ -73,6 +70,7 @@ class ScheduledRun:
             # print(f"Parsed {timeout} to {self._timeout} seconds")
         self._start_time = time.time()
         self._step = 0
+        self._temp_start_units = 0
         self._sigterm_received = 0
         self._start_temperature = start_temperature
         self._end_temperature = end_temperature
@@ -83,7 +81,8 @@ class ScheduledRun:
             or (seeding_ratio is not None and seeding_steps is not None)
         ):
             raise ValueError(
-                "Can only specify one of 'seeding_steps', 'seeding_timeout' and 'seeding_ratio' at the same time, the others must be None"
+                "Can only specify one of 'seeding_steps', 'seeding_timeout' and 'seeding_ratio' at the same time, "
+                "the others must be None "
             )
 
         self._seeding_timeout = None
@@ -281,14 +280,16 @@ class History:
     def __getitem__(self, item):
         if not self._keep_full_record:
             raise ValueError(
-                f"Error: Candidates were not recorded because ```keep_parameter_history``` argument passed to ```pyhopper.Search``` was set to False."
+                f"Error: Candidates were not recorded because ```keep_parameter_history``` argument passed to "
+                f"```pyhopper.Search``` was set to False. "
             )
         return self._log_candidate[item]
 
     def get_marginal(self, item):
         if not self._keep_full_record:
             raise ValueError(
-                f"Error: Candidates were not recorded because ```keep_parameter_history``` argument passed to ```pyhopper.Search``` was set to False."
+                f"Error: Candidates were not recorded because ```keep_parameter_history``` argument passed to "
+                f"```pyhopper.Search``` was set to False. "
             )
         if len(self._log_candidate) > 0:
             if item not in self._log_candidate[0].keys():
@@ -300,7 +301,8 @@ class History:
     def get_cancelled_marginal(self, item):
         if not self._keep_full_record:
             raise ValueError(
-                f"Error: Candidates were not recorded because ```keep_parameter_history``` argument passed to ```pyhopper.Search``` was set to False."
+                f"Error: Candidates were not recorded because ```keep_parameter_history``` argument passed to "
+                f"```pyhopper.Search``` was set to False. "
             )
         if len(self._cancelled_candidates) > 0:
             if item not in self._cancelled_candidates[0].keys():
@@ -968,8 +970,8 @@ class Search:
         self,
         objective_function,
         direction: str = "maximize",
-        max_steps: Optional[int] = None,
         timeout: Union[int, float, str, None] = None,
+        max_steps: Optional[int] = None,
         seeding_steps: Optional[int] = None,
         seeding_timeout: Union[int, float, str, None] = None,
         seeding_ratio: Optional[float] = None,
@@ -979,7 +981,7 @@ class Search:
         ignore_nans=False,
         mp_backend="auto",
         enable_rejection_cache=True,
-        callbacks: Optional[list] = None,
+        callbacks: Union[callable, list, None] = None,
         start_temperature: float = 0.7,
         end_temperature: float = 0.3,
         kwargs=None,
@@ -1032,7 +1034,8 @@ class Search:
             schedule.increment_step()
 
         current_temperature = schedule.temperature
-        self._wait_for_one_free_executor()  # Before entering the loop, let's wait until we can run at least one candidate
+        # Before entering the loop, let's wait until we can run at least one candidate
+        self._wait_for_one_free_executor()
         while not schedule.is_timeout(self._run_history.estimated_candidate_runtime):
             # If estimated runtime exceeds timeout let's already terminate
             if len(self._manually_queued_candidates) > 0:
@@ -1066,8 +1069,10 @@ class Search:
                     1.05  # increase temperature by 5% if we found a duplicate
                 )
             schedule.increment_step()
+            pbar.n = schedule.current_units
             self._update_pbar(pbar)
-            self._wait_for_one_free_executor()  # Before entering the loop, let's wait until we can run at least one candidate
+            # Before entering the loop, let's wait until we can run at least one candidate
+            self._wait_for_one_free_executor()
 
         self._wait_for_all_running_jobs()
 

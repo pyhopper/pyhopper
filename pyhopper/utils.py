@@ -49,7 +49,8 @@ class NTimesEvaluator:
                 r = self._func(param, **kwargs)
             if r is None:
                 raise ValueError(
-                    f"Objective function returned None. The probably means you forgot to add a 'return' statement at the end of the function"
+                    f"Objective function returned None. The probably means you forgot to add a 'return' statement at "
+                    f"the end of the function "
                 )
             results.append(float(r))
             if self._yield_after is not None and i >= self._yield_after:
@@ -80,14 +81,16 @@ def parse_timeout(timeout: Union[int, float, str]):
         timeout = timeout.replace("days", "").replace("day", "").replace("d", "")
         if timeout.strip() == "":
             raise ValueError(
-                "Could not parse number of days in timeout-string. Hint: no spaces are allowed between the number and the units, e.g., 3days"
+                "Could not parse number of days in timeout-string. Hint: no spaces are allowed between the number and "
+                "the units, e.g., 3days "
             )
         return int(timeout) * 60 * 60 * 24
     elif "h" in timeout:
         timeout = timeout.replace("hours", "").replace("hour", "").replace("h", "")
         if timeout.strip() == "":
             raise ValueError(
-                "Could not parse number of hours in timeout-string. Hint: no spaces are allowed between the number and the units, e.g., 12h"
+                "Could not parse number of hours in timeout-string. Hint: no spaces are allowed between the number "
+                "and the units, e.g., 12h "
             )
         return int(timeout) * 60 * 60
     elif "m" in timeout:
@@ -101,7 +104,8 @@ def parse_timeout(timeout: Union[int, float, str]):
         )
         if timeout.strip() == "":
             raise ValueError(
-                "Could not parse number of minutes in timeout-string. Hint: no spaces are allowed between the number and the units, e.g., 60min"
+                "Could not parse number of minutes in timeout-string. Hint: no spaces are allowed between the number "
+                "and the units, e.g., 60min "
             )
         return int(timeout) * 60
     else:
@@ -115,7 +119,8 @@ def parse_timeout(timeout: Union[int, float, str]):
         )
         if timeout.strip() == "":
             raise ValueError(
-                "Could not parse number of seconds in timeout-string. Hint: no spaces are allowed between the number and the units, e.g., 10s"
+                "Could not parse number of seconds in timeout-string. Hint: no spaces are allowed between the number "
+                "and the units, e.g., 10s "
             )
         return int(timeout)
 
@@ -124,14 +129,16 @@ def sanitize_bounds(lb, ub):
     if lb is not None and ub is None:
         if np.any(lb <= 0):
             raise ValueError(
-                "Cannot register parameter. If only a single bound is provided it is treated as upper bound and the lower bound defaults to 0, but the provided bound is negative. Providing both bounds."
+                "Cannot register parameter. If only a single bound is provided it is treated as upper bound and the "
+                "lower bound defaults to 0, but the provided bound is negative. Providing both bounds. "
             )
         ub = lb
         lb = 0
     if lb is None and ub is not None:
         if np.any(ub <= 0):
             raise ValueError(
-                "Cannot register parameter. If only a single bound is provided it is treated as upper bound and the lower bound defaults to 0, but the provided bound is negative. Providing both bounds."
+                "Cannot register parameter. If only a single bound is provided it is treated as upper bound and the "
+                "lower bound defaults to 0, but the provided bound is negative. Providing both bounds. "
             )
         lb = 0
     if lb is not None and ub is not None:
@@ -142,7 +149,8 @@ def sanitize_bounds(lb, ub):
 
 
 def infer_shape(*args):
-    # TODO: If there are multiple np.ndarray the shape should be the largest one while making sure the others are broadcastable
+    # TODO: If there are multiple np.ndarray the shape should be the largest one while making sure the others are
+    #  broadcastable
     shape = None
     for v in args:
         if isinstance(v, np.ndarray):

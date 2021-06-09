@@ -8,14 +8,14 @@ API
 This is the API documentation of PyHopper
 
 
-Application Object
+Search Object
 ------------------
 
 .. autoclass:: Search
    :members:
    :inherited-members:
 
-Parameter Types
+Parameters
 ------------------
 
 .. autofunction:: float
@@ -25,3 +25,8 @@ Parameter Types
 .. autofunction:: choice
 
 .. autofunction:: custom
+
+Utilities
+------------------
+
+.. autofunction:: wrap_n_times
