@@ -3,6 +3,9 @@ import os
 
 
 class Callback:
+    def on_search_start(self, search):
+        pass
+
     def on_evaluate_start(self, candidate):
         pass
 
@@ -15,10 +18,7 @@ class Callback:
     def on_new_best(self, new_best, f):
         pass
 
-    def on_search_start(self):
-        pass
-
-    def on_search_end(self, best, best_f, history):
+    def on_search_end(self, history):
         pass
 
 

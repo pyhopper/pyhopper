@@ -1,8 +1,3 @@
-.. PyHopper documentation master file, created by
-sphinx-quickstart on Tue Mar 16 13:09:22 2021.
-You can adapt this file completely to your liking, but it should at least
-contain the root `toctree` directive.
-
 Welcome to PyHopper's documentation!
 ====================================
 
@@ -29,7 +24,7 @@ PyHopper is a python hyperparameter optimizer, installable with
             "opt": pyhopper.choice(["adam","rmsprop","sgd"],init="adam"),
         }
     )
-    best_params = search.run(objective, "max", "1h 30min")
+    best_params = search.run(objective, "maximize", "1h 30min")
 
 and rich in useful features
 
@@ -42,7 +37,7 @@ and rich in useful features
         runtime="12h",
         callbacks=pyhopper.callbacks.FancyCallbackHERE(),
     )
-
+    print("TEST")
 
 User’s Guide
 ------------

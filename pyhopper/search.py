@@ -959,11 +959,11 @@ class Search:
             callbacks = [callbacks]
         self._hooked_callbacks.extend(callbacks)
         for c in self._hooked_callbacks:
-            c.on_search_start()
+            c.on_search_start(self)
 
     def _unhook_callbacks(self):
         for c in self._hooked_callbacks:
-            c.on_search_end(self.best, self.best_f, self._history)
+            c.on_search_end(self._history)
         self._hooked_callbacks.clear()
 
     def run(
