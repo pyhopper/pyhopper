@@ -29,10 +29,11 @@ and straightforward to use
     )
     best_params = search.run(objective, "maximize", "1h 30min")
 
-The PyHopper's search process is a powerful evolutionary strategy that
-runs parallel across multiple GPUs
-natively supports NumPy array parameters with millions of dimensions
-is highly customizable (e.g. directly tuning torch.Tensor parameters)
+The PyHopper's tuning process is a powerful Markov chain Monte Carlo (MCMC) sampler that
+
+- runs parallel across multiple GPUs
+- natively supports NumPy array parameters with millions of dimensions
+- is highly customizable (e.g. you can directly tune entire torch.Tensor hyperparameters)
 
 The PyHopper's simple user interface allows running hyperparameter searches with less than 5 minutes setup time and minimal adaptations of existing code.
 
@@ -43,7 +44,6 @@ User’s Guide
     :maxdepth: 2
 
     quickstart
-    search
     recipes
 
 API Reference
