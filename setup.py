@@ -17,7 +17,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="pyhopper",
-    version="0.0.12",
+    version="0.1.0",
     python_requires=">3.6.0",
     packages=find_packages(),  # include/exclude arguments take * as wildcard, . for any sub-package names
     description="TODO",

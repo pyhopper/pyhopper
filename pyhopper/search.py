@@ -461,9 +461,9 @@ def register_int(
 
 
 def register_custom(
-    init: Any,
-    mutation_strategy: Optional[FunctionType] = None,
     sampling_strategy: Optional[FunctionType] = None,
+    mutation_strategy: Optional[FunctionType] = None,
+    init: Any = None,
 ) -> CustomParameter:
     if sampling_strategy is None and init is None:
         raise ValueError(
@@ -563,6 +563,7 @@ class Search:
         self._schedule = []
         self._objective_hash = None
         self._task_executor = None
+        self._current_run_config = None
 
         for k, v in parameters.items():
             self._register_parameter(k, v)
@@ -993,6 +994,19 @@ class Search:
         if kwargs is None:
             kwargs = {}
 
+        self._current_run_config = {
+            "direction": direction,
+            "timeout": timeout,
+            "max_steps": max_steps,
+            "seeding_steps": seeding_steps,
+            "seeding_timeout": seeding_timeout,
+            "seeding_ratio": seeding_ratio,
+            "n_jobs": n_jobs,
+            "use_canceller": canceller is not None,
+            "ignore_nans": ignore_nans,
+            "start_temperature": start_temperature,
+            "end_temperature": end_temperature,
+        }
         schedule = ScheduledRun(
             max_steps,
             timeout,
@@ -1089,6 +1103,10 @@ class Search:
         if verbose > 0:
             self.pretty_print_results()
         return self._best_solution
+
+    @property
+    def current_run_config(self):
+        return self._current_run_config
 
     @property
     def history(self):

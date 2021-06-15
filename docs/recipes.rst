@@ -1,39 +1,33 @@
-.. _quickstart:
+.. _recipes:
 
-Quickstart
+Recipes
 ==========
 
 This is the quickstart guide of PyHopper
 
 
-User manual
+Callbacks
 --------------
 
- .. toctree::
-    :maxdepth: 2
+Callbacks can hook at the following six events
 
-.. py:function:: enumerate(sequence[, start=0])
+.. code-block:: python
 
-   Return an iterator that yields tuples of an index and an item of the
-   *sequence*. (And so on.)
+    class MyCallback(pyhopper.callbacks.Callback):
+        def on_search_start(self, search: pyhopper.Search):
+            pass # Called at the beginning of the search process
 
-.. py:class:: Bar
+        def on_evaluate_start(self, param: dict):
+            pass # Called after parameter `param` is sampled
 
-   Example test
+        def on_evaluate_end(self, param: dict, f: float):
+            pass # Called after parameter `param` is evaluated to the value f
 
-   .. py:method:: Bar.quux()
+        def on_evaluate_cancelled(self, param: dict):
+            pass # Called if the evaluation of parameter `param` is canceled (non promising)
 
-      This is a simple method
+        def on_new_best(self, new_best: dict, f: float):
+            pass # Called if a new best parameter `new_best` with value f was found
 
-   .. py:method:: Bar.__init__(a,c)
-
-      this is the init function
-
-      .. code-block:: python
-
-          x = Bar(1,"hello")
-          x.print()
-
-.. py:class:: Foo
-
-   .. py:method:: quux()
+        def on_search_end(self, history: pyhopper.History):
+            pass # Called at the end of the search process

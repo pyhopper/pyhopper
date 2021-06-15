@@ -2,52 +2,48 @@ Welcome to PyHopper's documentation!
 ====================================
 
 
-PyHopper is a python hyperparameter optimizer, installable with
+PyHopper is a hyperparameter optimizer, made specifically for high-dimensional problems arising in deep learning.
+Quick to install
 
 .. code-block:: bash
 
     pip3 install -U pyhopper
 
-, straightforward to use
+and straightforward to use
 
 .. code-block:: python
 
+    import pyhopper
+
     def objective(params: dict) -> float:
-        model = build_model(params["hidden_size"],params["lr"],params["opt"])
+        model = build_model(params["hidden_size"],...)
         # .... train and evaluate the model
         return val_accuracy
 
     search = pyhopper.Search(
         {
             "hidden_size": pyhopper.int(100,500),
-            "lr": pyhopper.float(0.00001,0.1,log=True), # logarithmic sampling
-            "opt": pyhopper.choice(["adam","rmsprop","sgd"],init="adam"),
+            "dropout_rate": pyhopper.float(0,0.4),
+            "opt": pyhopper.choice(["adam","rmsprop","sgd"]),
         }
     )
     best_params = search.run(objective, "maximize", "1h 30min")
 
-and rich in useful features
+The PyHopper's search process is a powerful evolutionary strategy that
+runs parallel across multiple GPUs
+natively supports NumPy array parameters with millions of dimensions
+is highly customizable (e.g. directly tuning torch.Tensor parameters)
 
-.. code-block:: python
-
-    best_params = search.run(
-        pyhopper.wrap_n_times(objective,n=5,reduction="mean"), # average over 5 initializations
-        "max",
-        n_jobs="per-gpu", # Train multiple parameters candidates in parallel
-        runtime="12h",
-        callbacks=pyhopper.callbacks.FancyCallbackHERE(),
-    )
-    print("TEST")
+The PyHopper's simple user interface allows running hyperparameter searches with less than 5 minutes setup time and minimal adaptations of existing code.
 
 User’s Guide
 ------------
-
-Here is a list of recipes covering 99% of PyHopper's typical use-cases
 
 .. toctree::
     :maxdepth: 2
 
     quickstart
+    search
     recipes
 
 API Reference
