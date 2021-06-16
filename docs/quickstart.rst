@@ -8,30 +8,63 @@ This is the quickstart guide of PyHopper
 PyHopper's search algorithm
 --------------
 
-PyHopper uses a 2-stage MCMC-based optimization algorithm.
-In the first **random seeding** stage, PyHopper randomly samples candidates from the entirety of the search space.
+PyHopper uses a 2-stage Markov chain Monte Carlo (MCMC) based optimization algorithm.
+In the first **random seeding** stage, PyHopper randomly generates candidates from the entirety of the search space.
 The purpose of this stage is to spot the most promising part of the search space quickly.
 
-.. figure:: img/seeding.webp
-   :align: center
-
-    PyHopper's random seeding applied to a 2D example problem
-
-In the second **neighborhood sampling** stage, PyHopper takes the current best parameter and mutates it to obtain a slightly different candidate.
+In the second **local sampling** stage, PyHopper takes the current best parameter and mutates it to obtain a slightly different candidate.
 If the newly generated parameter is better than its predecessor, it is stored as the new best parameter.
 Otherwise, it will be discarded. The randomness of the mutation step is modulated by a temperature parameter that decreases over the algorithm's runtime.
 
-.. figure:: img/neighbor.webp
+.. figure:: img/sampling.webp
    :align: center
 
-    PyHopper's neighborhood sampling applied to a 2D example problem
+    PyHopper's two MCMC sampling strategies applied to a 2D example problem
 
 As evaluating a candidate is costly, a smart hashing routine takes care that no candidate is evaluated twice.
-This 2-stage process allows PyHopper to explore and exploit parameter spaces with millions of dimensions efficiently.
+This 2-stage MCMC process allows PyHopper to explore and exploit parameter spaces with millions of dimensions efficiently.
 
-
-User’s Guide
+Defining the search space
 --------------
+
+The central component of PyHopper is the `pyhopper.Search` class. Its constructor requires a `dict` object that
+acts as as the hyperparameter *template* and defines the search space.
+During runtime, PyHopper samples candidates by instantiating concrete hyperparameter from this template.
+The resulting candidates are `dict` objects as well, with the only difference that PyHopper template types are replaced by a sample obtained from the MCMC core.
+
+.. code-block:: python
+
+    import pyhopper
+
+    def of(param):
+        print(param)
+        return 0
+
+    search = pyhopper.Search(
+        {
+            "my_const_param": "cifar10",
+            "my_int_param": pyhopper.int(100,500),
+            "my_float_param": pyhopper.float(0,0.4),
+            "my_choice_param": pyhopper.choice(["adam","rmsprop","sgd"]),
+        }
+    )
+    search.run(of,max_steps=5)
+
+.. code-block::
+
+    >>> {'my_const_param': 'cifar10', 'my_int_param': 442, 'my_float_param': 0.16690259272502092, 'my_choice_param': 'sgd'}
+    >>> {'my_const_param': 'cifar10', 'my_int_param': 198, 'my_float_param': 0.21107963087889003, 'my_choice_param': 'adam'}
+    >>> {'my_const_param': 'cifar10', 'my_int_param': 159, 'my_float_param': 0.09813299118201196, 'my_choice_param': 'adam'}
+    >>> {'my_const_param': 'cifar10', 'my_int_param': 203, 'my_float_param': 0.19852373670299772, 'my_choice_param': 'adam'}
+
+Hyperparameter templates
+~~~~~~~~~~~~~~~
+
+As shown above, PyHopper has three built-in template types: `int`, `float`, and `choice` :ref:`api:parameters`.
+
+
+
+
 
  .. toctree::
     :maxdepth: 2

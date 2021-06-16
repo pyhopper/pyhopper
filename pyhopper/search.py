@@ -44,7 +44,7 @@ class CandidateType(Enum):
     INIT = 0
     MANUALLY_ADDED = 1
     RANDOM_SEEDING = 2
-    NEIGHBORHOOD_SAMPLING = 3
+    LOCAL_SAMPLING = 3
     REEVALUATION = 4
 
 
@@ -384,28 +384,28 @@ class LocalHistory:
             CandidateType.INIT: None,
             CandidateType.MANUALLY_ADDED: None,
             CandidateType.RANDOM_SEEDING: None,
-            CandidateType.NEIGHBORHOOD_SAMPLING: None,
+            CandidateType.LOCAL_SAMPLING: None,
             CandidateType.REEVALUATION: None,
         }
         self.amount_per_type = {
             CandidateType.INIT: 0,
             CandidateType.MANUALLY_ADDED: 0,
             CandidateType.RANDOM_SEEDING: 0,
-            CandidateType.NEIGHBORHOOD_SAMPLING: 0,
+            CandidateType.LOCAL_SAMPLING: 0,
             CandidateType.REEVALUATION: 0,
         }
         self.runtime_per_type = {
             CandidateType.INIT: 0,
             CandidateType.MANUALLY_ADDED: 0,
             CandidateType.RANDOM_SEEDING: 0,
-            CandidateType.NEIGHBORHOOD_SAMPLING: 0,
+            CandidateType.LOCAL_SAMPLING: 0,
             CandidateType.REEVALUATION: 0,
         }
         self.cancelled_per_type = {
             CandidateType.INIT: 0,
             CandidateType.MANUALLY_ADDED: 0,
             CandidateType.RANDOM_SEEDING: 0,
-            CandidateType.NEIGHBORHOOD_SAMPLING: 0,
+            CandidateType.LOCAL_SAMPLING: 0,
         }
 
     def is_better(self, old, new):
@@ -828,29 +828,21 @@ class Search:
         if self._run_history.amount_per_type[CandidateType.RANDOM_SEEDING] > 0:
             text_value_quadtuple.append(
                 (
-                    "Random seeding",
+                    "Random sampling",
                     self._run_history.best_per_type[CandidateType.RANDOM_SEEDING],
                     self._run_history.amount_per_type[CandidateType.RANDOM_SEEDING],
                     self._run_history.cancelled_per_type[CandidateType.RANDOM_SEEDING],
                     self._run_history.runtime_per_type[CandidateType.RANDOM_SEEDING],
                 )
             )
-        if self._run_history.amount_per_type[CandidateType.NEIGHBORHOOD_SAMPLING] > 0:
+        if self._run_history.amount_per_type[CandidateType.LOCAL_SAMPLING] > 0:
             text_value_quadtuple.append(
                 (
-                    "Neighborhood sampling",
-                    self._run_history.best_per_type[
-                        CandidateType.NEIGHBORHOOD_SAMPLING
-                    ],
-                    self._run_history.amount_per_type[
-                        CandidateType.NEIGHBORHOOD_SAMPLING
-                    ],
-                    self._run_history.cancelled_per_type[
-                        CandidateType.NEIGHBORHOOD_SAMPLING
-                    ],
-                    self._run_history.runtime_per_type[
-                        CandidateType.NEIGHBORHOOD_SAMPLING
-                    ],
+                    "Local sampling",
+                    self._run_history.best_per_type[CandidateType.LOCAL_SAMPLING],
+                    self._run_history.amount_per_type[CandidateType.LOCAL_SAMPLING],
+                    self._run_history.cancelled_per_type[CandidateType.LOCAL_SAMPLING],
+                    self._run_history.runtime_per_type[CandidateType.LOCAL_SAMPLING],
                 )
             )
         text_value_quadtuple.append(
@@ -1067,7 +1059,7 @@ class Search:
                 candidate_type = CandidateType.RANDOM_SEEDING
             else:
                 candidate = self.mutate_from_best(temperature=current_temperature)
-                candidate_type = CandidateType.NEIGHBORHOOD_SAMPLING
+                candidate_type = CandidateType.LOCAL_SAMPLING
             if candidate not in self._f_cache:
                 # If candidate was already run before, let's skip this step
                 self._submit_candidate(
