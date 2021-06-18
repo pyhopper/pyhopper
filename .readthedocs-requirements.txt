@@ -6,3 +6,4 @@ pandas
 loky
 tqdm
 distributed
+sphinx-copybutton
