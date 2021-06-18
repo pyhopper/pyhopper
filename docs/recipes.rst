@@ -8,6 +8,9 @@ This is the quickstart guide of PyHopper
 Walkthrough: 1 epoch MNIST
 --------------
 
+Dealing with NaNs
+--------------
+
 Callbacks
 --------------
 

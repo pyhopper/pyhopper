@@ -43,7 +43,10 @@ extensions = [
     "sphinx.ext.autosummary",
     "sphinx.ext.autodoc",
     "sphinx.ext.mathjax",
+    "sphinx.ext.autosectionlabel",
     "sphinx.ext.viewcode",
+    "sphinx.ext.intersphinx",
+    "sphinx_copybutton",
 ]
 html_theme = "alabaster"
 

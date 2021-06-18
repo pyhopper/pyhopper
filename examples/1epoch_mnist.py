@@ -63,5 +63,3 @@ ax.plot(
     color="red",
 )
 fig.savefig("test.png")
-
-replay_policy(policy, render=True)
