@@ -220,14 +220,13 @@ class ChoiceParameter(Parameter):
         self._is_ordinal = is_ordinal
         self._mutation_strategy = mutation_strategy
         self._sampling_strategy = sampling_strategy
+        self._int_param = IntParameter(None, 0, len(options) - 1)
 
     def sample(self):
         if self._sampling_strategy is not None:
             new_value = self._sampling_strategy()
         else:
-            new_value = self._options[
-                np.random.default_rng().integers(0, len(self._options))
-            ]
+            new_value = self._options[self._int_param.sample()]
         return new_value
 
     def mutate(self, value, temperature: float):
@@ -236,17 +235,10 @@ class ChoiceParameter(Parameter):
                 self._mutation_strategy, value, temperature
             )
         elif self._is_ordinal:
-            spread = int(len(self._options))
             index = self._options.index(value)
-            new_index = index + int(
-                temperature * 0.5 * np.random.default_rng().integers(-spread, spread)
-            )
-            new_index = np.clip(new_index, 0, len(self._options) - 1)
-            new_value = self._options[new_index]
+            new_value = self._options[self._int_param.mutate(index, temperature)]
         else:
-            new_value = self._options[
-                np.random.default_rng().integers(0, len(self._options))
-            ]
+            new_value = self._options[self._int_param.sample()]
         return new_value
 
 
