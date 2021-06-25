@@ -220,7 +220,9 @@ class ChoiceParameter(Parameter):
         self._is_ordinal = is_ordinal
         self._mutation_strategy = mutation_strategy
         self._sampling_strategy = sampling_strategy
-        self._int_param = IntParameter(None, 0, len(options) - 1)
+        self._int_param = IntParameter(
+            None, 0, len(options) - 1, None, None, None, None
+        )
 
     def sample(self):
         if self._sampling_strategy is not None:
