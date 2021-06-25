@@ -17,6 +17,7 @@ from __future__ import absolute_import
 
 import pyhopper.cancellers as cancellers
 import pyhopper.callbacks as callbacks
+from pyhopper.parameters import Parameter as Parameter
 from pyhopper.parallel import CancelEvaluation as CancelEvaluation
 from pyhopper.search import Search as Search
 from pyhopper.search import register_float as float

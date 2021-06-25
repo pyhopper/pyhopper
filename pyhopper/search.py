@@ -21,6 +21,8 @@ from .parameters import (
     FrozenParameter,
     FixedParameter,
     Parameter,
+    PowerOfIntParameter,
+    LogSpaceFloatParameter,
 )
 from .parallel import execute, TaskManager, SignalListener
 import numpy as np
@@ -75,28 +77,27 @@ class ScheduledRun:
         self._start_temperature = start_temperature
         self._end_temperature = end_temperature
 
-        if (
-            (seeding_steps is not None and seeding_timeout is not None)
-            or (seeding_ratio is not None and seeding_timeout is not None)
-            or (seeding_ratio is not None and seeding_steps is not None)
-        ):
+        if seeding_steps is not None and seeding_timeout is not None:
             raise ValueError(
-                "Can only specify one of 'seeding_steps', 'seeding_timeout' and 'seeding_ratio' at the same time, "
-                "the others must be None "
+                "Can only specify one of 'seeding_steps' and 'seeding_timeout' at the same time, one of the two must be None"
             )
 
         self._seeding_timeout = None
-        if seeding_timeout is not None:
-            self._seeding_timeout = parse_timeout(seeding_timeout)
-        self._seeding_max_steps = seeding_steps
-        self._seeding_ratio = seeding_ratio  # only needed for endless mode
-        if seeding_ratio is not None:
+        self._seeding_max_steps = None
+
+        if seeding_timeout is None and seeding_steps is None:
+            # seeding_ratio is only valid if no other argument was set
             if self._step_limit is not None:
                 # Max steps mode with seeding ratio provided
                 self._seeding_max_steps = int(seeding_ratio * max_steps)
             elif self._timeout is not None:
                 # Timeout mode with seeding ratio provided
                 self._seeding_timeout = seeding_ratio * self._timeout
+        else:
+            if seeding_timeout is not None:
+                self._seeding_timeout = parse_timeout(seeding_timeout)
+            self._seeding_max_steps = seeding_steps
+        self._seeding_ratio = seeding_ratio  # only needed for endless mode
 
         self._temp_start = None
         self._force_quit_callback = None
@@ -444,32 +445,66 @@ def register_int(
     ub: Optional[Union[int, float, np.ndarray]] = None,
     init: Optional[Union[int, float, np.ndarray]] = None,
     multiple_of: Optional[int] = None,
-    shape: Optional[Tuple] = None,
-    mutation_strategy: Optional[FunctionType] = None,
-    sampling_strategy: Optional[FunctionType] = None,
+    power_of: Optional[int] = None,
+    shape: Optional[Union[int, Tuple]] = None,
+    mutation_strategy: Optional[callable] = None,
+    sampling_strategy: Optional[callable] = None,
 ) -> IntParameter:
+    """Creates a new integer parameter
+
+    :param lb: Lower bound of the parameter.
+    :param ub: Upper bound of the parameter. If None, the `lb` argument will be used as upper bound with a lower bound of 0.
+    :param init: Initial value of the parameter. If None it will be randomly sampled
+    :param multiple_of: Setting this value to a positive integer enforces the sampled values of this parameter to be a mulitple of `multiple_of`.
+    :param shape: For NumPy array type parameters, this argument must be set to a tuple containing the shape of the np.ndarray
+    :param mutation_strategy: Setting this argument to a callable overwrites the default local sampling strategy. The callback gets called with the value
+        of the the current best solution as argument and returns a mutated value
+    :param sampling_strategy: Setting this argument to a callable overwrites the default random seeding strategy
+    :return:
+    """
     if lb is None and ub is None:
         # Unbounded int is actually a 32-bit integer
-        lb = -(2 ** 31)
-        ub = 2 ** 31 - 1
+        lb = np.iinfo(np.int32).min
+        ub = np.iinfo(np.int32).max
     lb, ub = sanitize_bounds(lb, ub)
     param_shape = infer_shape(shape, init, lb, ub) if shape is None else shape
+    if power_of is not None:
+        if power_of not in [1, 2]:
+            raise ValueError(
+                f"Power of {power_of} integers are currently not supported (only power 2 integers)."
+            )
+        return PowerOfIntParameter(
+            shape,
+            lb,
+            ub,
+            init,
+            power_of,
+            multiple_of,
+            mutation_strategy,
+            sampling_strategy,
+        )
     param = IntParameter(
-        param_shape, lb, ub, init, multiple_of, mutation_strategy, sampling_strategy
+        param_shape,
+        lb,
+        ub,
+        init,
+        multiple_of,
+        mutation_strategy,
+        sampling_strategy,
     )
     return param
 
 
 def register_custom(
-    sampling_strategy: Optional[FunctionType] = None,
-    mutation_strategy: Optional[FunctionType] = None,
+    seeding_strategy: Optional[callable] = None,
+    mutation_strategy: Optional[callable] = None,
     init: Any = None,
 ) -> CustomParameter:
-    if sampling_strategy is None and init is None:
+    if seeding_strategy is None and init is None:
         raise ValueError(
             f"Could not create custom parameter, must either provide an initial value or a seeding strategy function"
         )
-    param = CustomParameter(init, mutation_strategy, sampling_strategy)
+    param = CustomParameter(init, mutation_strategy, seeding_strategy)
     return param
 
 
@@ -478,10 +513,22 @@ def register_choice(
     init: Optional[Any] = None,
     is_ordinal: bool = False,
     mutation_strategy: Optional[FunctionType] = None,
-    sampling_strategy: Optional[FunctionType] = None,
+    seeding_strategy: Optional[FunctionType] = None,
 ) -> ChoiceParameter:
+    """Creates a new choice parameter
+
+    :param options: List containing the possible values of this parameter
+    :param init: Initial value of the parameter. If None it will be randomly sampled.
+    :param is_ordinal: Flag indicating whether two neighboring list items ordered or not. If True, in the local sampling stage list items neighboring the current best value will be preferred. For sets with a natural ordering it is recommended to set this flag to True.
+    :param mutation_strategy: Setting this argument to a callable overwrites the default local sampling strategy. The callback gets called with the value
+        of the the current best solution as argument and returns a mutated value
+    :param seeding_strategy: Setting this argument to a callable overwrites the default random seeding strategy
+    :return:
+    """
+    if len(options) == 0:
+        raise ValueError("List with possible values must not be empty.")
     param = ChoiceParameter(
-        options, init, is_ordinal, mutation_strategy, sampling_strategy
+        options, init, is_ordinal, mutation_strategy, seeding_strategy
     )
     return param
 
@@ -492,22 +539,24 @@ def register_float(
     init: Optional[Union[int, float, np.ndarray]] = None,
     log: Union[bool] = False,
     precision: Optional[int] = None,
-    shape: Optional[Tuple] = None,
+    shape: Optional[Union[int, Tuple]] = None,
     mutation_strategy: Optional[FunctionType] = None,
-    sampling_strategy: Optional[FunctionType] = None,
+    seeding_strategy: Optional[FunctionType] = None,
 ) -> FloatParameter:
-    """
+    """Creates a new floating point parameter
 
-    :param lb: Lower bound of the parameter.
-    :param ub: Upper bound of the parameter
+    :param lb: Lower bound of the parameter. If both `lb` and `ub` are None, this parameter will be unbounded (usually not recommended).
+    :param ub: Upper bound of the parameter. If None, the `lb` argument will be used as upper bound with a lower bound of 0.
     :param init: Initial value of the parameter. If None it will be randomly sampled
+    :param shape: For NumPy array type parameters, this argument must be set to a tuple containing the shape of the np.ndarray
     :param log: Whether to use logarithmic or linearly scaling of the parameter.
         Defaults to False which searches the space linearly.
         If True, a logarithmic scaling is applied to the search space of this variable
     :param precision: Rounds the values to the specified significant digits.
         Defaults to None meaning that no rounding is applied
-    :param mutation_strategy: Manual mutations can be implemented via a callback that maps a value
-        of the the current best solution to a mutated value
+    :param mutation_strategy: Setting this argument to a callable overwrites the default local sampling strategy. The callback gets called with the value
+        of the the current best solution as argument and returns a mutated value
+    :param seeding_strategy: Setting this argument to a callable overwrites the default random seeding strategy
     """
     lb, ub = sanitize_bounds(lb, ub)
     if log and (lb is None or ub is None):
@@ -520,15 +569,18 @@ def register_float(
         )
 
     param_shape = infer_shape(init, lb, ub) if shape is None else shape
+    if log:
+        return LogSpaceFloatParameter(
+            param_shape, lb, ub, init, precision, mutation_strategy, seeding_strategy
+        )
     param = FloatParameter(
         param_shape,
         lb,
         ub,
         init,
-        log,
         precision,
         mutation_strategy,
-        sampling_strategy,
+        seeding_strategy,
     )
     return param
 
@@ -581,8 +633,12 @@ class Search:
             self._params[key] = FixedParameter(value)
             self._best_solution[key] = value
 
-    def init_with(self, candidate: dict) -> None:
-        """ Overwrite the current best solution """
+    def overwrite_best(self, candidate: dict, f: Optional[float] = None) -> None:
+        """Overwrites the current best solution with the provided parameter and objective function value
+
+        :param candidate: Parameter values that will be set as current best candidate
+        :param f: Objective function value that will be set as the current best value
+        """
         for k, v in self._params.items():
             cv = candidate.get(k)
             if cv is not None:
@@ -591,6 +647,18 @@ class Search:
                 init = self._best_solution.get(k)
                 if init is None:
                     raise ValueError(f"Parameter '{k}' has no initial value.")
+        self._best_f = f
+
+    def forget_cached(self, candidate: dict):
+        """Removes the given parameter candidate from the evaluation cache. This might be useful if a parameter value should be reevaluated.
+
+        :param candidate: Parameter candidate to be wiped from the evaluation cache
+        """
+        self._f_cache.forget(candidate)
+
+    def clear_cache(self):
+        """Forgets all values of already evaluated parameters."""
+        self._f_cache.clear()
 
     def add(self, candidate: dict) -> None:
         """
@@ -696,7 +764,13 @@ class Search:
         temperature = np.clip(temperature, 0, 1)
         candidate = {}
         for (k, v) in self._params.items():
+            # With decreasing temperature we resample/mutate fewer parameters
             candidate[k] = v.mutate(self._best_solution[k], temperature)
+            # TODO: Implement some heuristic here
+            # if np.random.default_rng().random() <= temperature:
+            #     candidate[k] = v.mutate(self._best_solution[k], temperature)
+            # else:
+            #     candidate[k] = self._best_solution[k]
         return candidate
 
     def _submit_candidate(self, objective_function, candidate_type, candidate, kwargs):
@@ -828,7 +902,7 @@ class Search:
         if self._run_history.amount_per_type[CandidateType.RANDOM_SEEDING] > 0:
             text_value_quadtuple.append(
                 (
-                    "Random sampling",
+                    "Random seeding",
                     self._run_history.best_per_type[CandidateType.RANDOM_SEEDING],
                     self._run_history.amount_per_type[CandidateType.RANDOM_SEEDING],
                     self._run_history.cancelled_per_type[CandidateType.RANDOM_SEEDING],
@@ -967,16 +1041,16 @@ class Search:
         max_steps: Optional[int] = None,
         seeding_steps: Optional[int] = None,
         seeding_timeout: Union[int, float, str, None] = None,
-        seeding_ratio: Optional[float] = None,
+        seeding_ratio: Optional[float] = 0.3,
         canceller=None,
         n_jobs=1,
-        verbose=1,
+        quiet=False,
         ignore_nans=False,
         mp_backend="auto",
         enable_rejection_cache=True,
         callbacks: Union[callable, list, None] = None,
-        start_temperature: float = 0.7,
-        end_temperature: float = 0.3,
+        start_temperature: float = 1,
+        end_temperature: float = 0,
         kwargs=None,
     ):
         """
@@ -1012,7 +1086,7 @@ class Search:
         self._signal_listener.register_signal(
             schedule.signal_gradually_quit, self._force_termination
         )
-        if verbose > 0:
+        if not quiet:
             print(f"Search is scheduled for {schedule.to_total_str()}")
         if n_jobs != 1:
             self._task_executor = TaskManager(n_jobs, mp_backend)
@@ -1021,7 +1095,7 @@ class Search:
 
         pbar = tqdm(
             total=schedule.total_units,
-            disable=verbose <= 0,
+            disable=quiet,
             unit=schedule.unit,
         )
         self._hook_callbacks(callbacks)
@@ -1074,6 +1148,7 @@ class Search:
                 current_temperature *= (
                     1.05  # increase temperature by 5% if we found a duplicate
                 )
+                current_temperature = max(current_temperature, 1)
             schedule.increment_step()
             pbar.n = schedule.current_units
             self._update_pbar(pbar)
@@ -1092,7 +1167,7 @@ class Search:
         del self._task_executor
         self._task_executor = None
 
-        if verbose > 0:
+        if not quiet:
             self.pretty_print_results()
         return self._best_solution
 

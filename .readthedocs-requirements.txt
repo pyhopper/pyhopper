@@ -7,3 +7,4 @@ loky
 tqdm
 distributed
 sphinx-copybutton
+furo

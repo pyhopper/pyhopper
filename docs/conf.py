@@ -29,12 +29,14 @@ version = ""
 # The full version, including alpha/beta/rc tags
 release = "0.0.1"
 
+html_favicon = "img/pyhopper_32.png"
+
 
 # -- General configuration ---------------------------------------------------
 
 # If your documentation needs a minimal Sphinx version, state it here.
 #
-# needs_sphinx = '1.0'
+needs_sphinx = "3.0"
 
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
@@ -43,13 +45,13 @@ extensions = [
     "sphinx.ext.autosummary",
     "sphinx.ext.autodoc",
     "sphinx.ext.mathjax",
-    "sphinx.ext.autosectionlabel",
+    # "sphinx.ext.autosectionlabel",
     "sphinx.ext.viewcode",
     "sphinx.ext.intersphinx",
     "sphinx_copybutton",
 ]
-html_theme = "alabaster"
-
+# html_theme = "alabaster"
+html_theme = "furo"
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = [".templates"]
@@ -76,7 +78,7 @@ language = None
 exclude_patterns = [".build", "Thumbs.db", ".DS_Store"]
 
 # The name of the Pygments (syntax highlighting) style to use.
-pygments_style = None
+pygments_style = "friendly"
 autodoc_typehints = "description"
 
 
@@ -89,13 +91,26 @@ autodoc_typehints = "description"
 # further.  For a list of options available for each theme, see the
 # documentation.
 #
-html_theme_options = {"page_width": "1140px", "fixed_sidebar": "true"}
+html_logo = ".static/banner_64.png"
+# text_fonts = "FreightSans, Helvetica Neue, Helvetica, Arial, sans-serif"
+html_theme_options = {
+    "sidebar_hide_name": True,
+    # "page_width": "1140px",
+    # "fixed_sidebar": "true",
+    # "logo": "banner_64.png",
+    # "description_font_style": "Quicksand",
+    # "font_family": text_fonts,
+    # "caption_font_family": "Quicksand",
+    # "head_font_family": "Quicksand",
+    # "sidebar_collapse": True,
+    # "sidebar_includehidden": False,
+}
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = [".static"]
-
+html_css_files = ["custom.css"]
 # Custom sidebar templates, must be a dictionary that maps document names
 # to template names.
 #
@@ -107,80 +122,3 @@ html_static_path = [".static"]
 # html_sidebars = {}
 
 # html_sidebars = {"**": ["globaltoc.html", "relations.html", "searchbox.html"]}
-
-
-# -- Options for HTMLHelp output ---------------------------------------------
-
-# Output file base name for HTML help builder.
-htmlhelp_basename = "PyHopperdoc"
-
-
-# -- Options for LaTeX output ------------------------------------------------
-
-latex_elements = {
-    # The paper size ('letterpaper' or 'a4paper').
-    #
-    # 'papersize': 'letterpaper',
-    # The font size ('10pt', '11pt' or '12pt').
-    #
-    # 'pointsize': '10pt',
-    # Additional stuff for the LaTeX preamble.
-    #
-    # 'preamble': '',
-    # Latex figure (float) alignment
-    #
-    # 'figure_align': 'htbp',
-}
-
-# Grouping the document tree into LaTeX files. List of tuples
-# (source start file, target name, title,
-#  author, documentclass [howto, manual, or own class]).
-latex_documents = [
-    (master_doc, "PyHopper.tex", "PyHopper Documentation", "Mathias Lechner", "manual"),
-]
-
-
-# -- Options for manual page output ------------------------------------------
-
-# One entry per manual page. List of tuples
-# (source start file, name, description, authors, manual section).
-man_pages = [(master_doc, "pyhopper", "PyHopper Documentation", [author], 1)]
-
-
-# -- Options for Texinfo output ----------------------------------------------
-
-# Grouping the document tree into Texinfo files. List of tuples
-# (source start file, target name, title, author,
-#  dir menu entry, description, category)
-texinfo_documents = [
-    (
-        master_doc,
-        "PyHopper",
-        "PyHopper Documentation",
-        author,
-        "PyHopper",
-        "One line description of project.",
-        "Miscellaneous",
-    ),
-]
-
-
-# -- Options for Epub output -------------------------------------------------
-
-# Bibliographic Dublin Core info.
-epub_title = project
-
-# The unique identifier of the text. This can be a ISBN number
-# or the project homepage.
-#
-# epub_identifier = ''
-
-# A unique identification for the text.
-#
-# epub_uid = ''
-
-# A list of files that should not be packed into the epub file.
-epub_exclude_files = ["search.html"]
-
-
-# -- Extension configuration -------------------------------------------------

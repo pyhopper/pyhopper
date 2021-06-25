@@ -1,18 +1,5 @@
-.. _recipes:
-
-Recipes
-==========
-
-This is the quickstart guide of PyHopper
-
-Walkthrough: 1 epoch MNIST
---------------
-
-Dealing with NaNs
---------------
-
-Callbacks
---------------
+Custom Callbacks
+-----------------------------
 
 Callbacks can hook at the following six events
 
@@ -29,7 +16,7 @@ Callbacks can hook at the following six events
             pass # Called after parameter `param` is evaluated to the value f
 
         def on_evaluate_cancelled(self, param: dict):
-            pass # Called if the evaluation of parameter `param` is canceled (non promising)
+            pass # Called if the evaluation of parameter `param` is canceled
 
         def on_new_best(self, new_best: dict, f: float):
             pass # Called if a new best parameter `new_best` with value f was found

@@ -30,6 +30,13 @@ class EvaluationCache:
     #         print("WARNING: Hash collision")
     #     self._cache[hash_code] = result
 
+    def forget(self, item):
+        hash_code = self._deep_hash(item)
+        if hash_code in self._cache:
+            del self._cache[hash_code]
+        if hash_code in self._staging:
+            del self._staging[hash_code]
+
     def stage(self, item):
         if self._enabled:
             hash_code = self._deep_hash(item)

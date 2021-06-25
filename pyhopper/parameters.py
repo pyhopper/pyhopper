@@ -17,9 +17,9 @@ import typing
 from inspect import signature
 
 
-def round_to_int(fvalue):
+def cast_to_int(fvalue):
     if isinstance(fvalue, np.ndarray):
-        return fvalue.astype(np.int32)
+        return fvalue.astype(np.int64)
     return int(fvalue)
 
 
@@ -32,7 +32,7 @@ def call_with_temperature(func, value, temperature):
 
 class Parameter:
     def __init__(self):
-        pass
+        self._init = None
 
     def sample(self) -> typing.Any:
         raise NotImplementedError()
@@ -85,7 +85,14 @@ class FrozenParameter(Parameter):
 
 class IntParameter(Parameter):
     def __init__(
-        self, shape, lb, ub, init, multiple_of, mutation_strategy, sampling_strategy
+        self,
+        shape,
+        lb,
+        ub,
+        init,
+        multiple_of,
+        mutation_strategy,
+        sampling_strategy,
     ):
         super().__init__()
         self._lb = lb
@@ -103,17 +110,24 @@ class IntParameter(Parameter):
             return int(v)
         return v
 
+    def _round_to_multiple_of(self, v):
+        if self._multiple_of is None:
+            return v
+        new_value = v + self._multiple_of // 2
+        new_value -= new_value % self._multiple_of
+        return new_value
+
     def sample(self):
         if self._sampling_strategy is not None:
             # Custom sampling
             new_value = self._sampling_strategy()
         else:
-            # Default bounded mode
+            # Integer is always bounded
             new_value = np.random.default_rng().integers(
                 self._lb, self._ub, size=self._shape, endpoint=True
             )
-        if self._multiple_of is not None:
-            new_value -= new_value % self._multiple_of
+        new_value = self._round_to_multiple_of(new_value)
+
         if self._lb is not None or self._ub is not None:
             new_value = np.clip(new_value, self._lb, self._ub)
         return self._cast_if_scalar(new_value)
@@ -126,22 +140,72 @@ class IntParameter(Parameter):
             new_value = call_with_temperature(
                 self._mutation_strategy, value, temperature
             )
-        elif self._lb is None or self._ub is None:
-            # Unbounded mode
-            spread = round_to_int(temperature * 2 ** 16) + 1
-            new_value = value + np.random.default_rng().integers(
-                -spread, spread, size=self._shape
+        else:
+            # Integer is always bounded
+            spread = self._ub - self._lb
+            new_value = value + cast_to_int(
+                np.round(
+                    temperature
+                    * 0.5
+                    * np.random.default_rng().integers(
+                        -spread, spread, size=self._shape
+                    )
+                )
+            )
+        new_value = self._round_to_multiple_of(new_value)
+
+        if self._lb is not None or self._ub is not None:
+            new_value = np.clip(new_value, self._lb, self._ub)
+        return self._cast_if_scalar(new_value)
+
+
+class PowerOfIntParameter(IntParameter):
+    def __init__(
+        self,
+        shape,
+        lb,
+        ub,
+        init,
+        power_of,
+        multiple_of,
+        mutation_strategy,
+        sampling_strategy,
+    ):
+        super().__init__(
+            shape, lb, ub, init, multiple_of, mutation_strategy, sampling_strategy
+        )
+        self._power_of = power_of
+        self._log_param = IntParameter(
+            shape, int(np.log2(lb)), int(np.log2(ub)), None, None, None, None
+        )
+
+    def sample(self):
+        if self._sampling_strategy is not None:
+            # Custom sampling
+            new_value = self._sampling_strategy()
+        else:
+            new_value = self._log_param.sample()
+            new_value = 2 ** new_value
+        new_value = self._round_to_multiple_of(new_value)
+
+        if self._lb is not None or self._ub is not None:
+            new_value = np.clip(new_value, self._lb, self._ub)
+        return self._cast_if_scalar(new_value)
+
+    def mutate(self, value, temperature: float):
+        if self._mutation_strategy is not None:
+            # deep copy value in case mutation_strategy operates in-place
+            if isinstance(value, np.ndarray):
+                value = np.copy(value)
+            new_value = call_with_temperature(
+                self._mutation_strategy, value, temperature
             )
         else:
-            # Default bounded mode
-            spread = self._ub - self._lb
-            new_value = value + round_to_int(
-                temperature
-                * 0.5
-                * np.random.default_rng().integers(-spread, spread, size=self._shape)
-            )
-        if self._multiple_of is not None:
-            new_value -= new_value % self._multiple_of
+            log_value = cast_to_int(np.log2(value))
+            new_value = self._log_param.mutate(log_value, temperature)
+            # breakpoint()
+            new_value = 2 ** new_value
+        new_value = self._round_to_multiple_of(new_value)
 
         if self._lb is not None or self._ub is not None:
             new_value = np.clip(new_value, self._lb, self._ub)
@@ -193,7 +257,6 @@ class FloatParameter(Parameter):
         lb,
         ub,
         init,
-        log,
         precision,
         mutation_strategy,
         sampling_strategy,
@@ -202,7 +265,6 @@ class FloatParameter(Parameter):
         self._lb = lb
         self._ub = ub
         self._init = init
-        self._log = log
         self._precision = precision
         self._mutation_strategy = mutation_strategy
         self._sampling_strategy = sampling_strategy
@@ -215,20 +277,20 @@ class FloatParameter(Parameter):
             return float(v)
         return v
 
-    def _round_and_clip(self, value):
+    def _round(self, value):
         if self._precision is not None:
             if self._shape is not None:
                 raise NotImplementedError(
                     "Setting the precision of an array parameter is not yet supported"
                 )
             # Use string format function to round to significant decimal digits
-            if self._log:
-                # round the significant digits
-                fmt_string = "{:0." + str(self._precision) + "g}"
-            else:
-                # round to decimal digits
-                fmt_string = "{:0." + str(self._precision) + "f}"
+            # round to decimal digits
+            fmt_string = "{:0." + str(self._precision) + "f}"
             value = float(fmt_string.format(value))
+        return value
+
+    def _round_and_clip(self, value):
+        value = self._round(value)
         if self._lb is not None or self._ub is not None:
             value = np.clip(value, self._lb, self._ub)
         return value
@@ -236,7 +298,7 @@ class FloatParameter(Parameter):
     def sample(self):
         if self._sampling_strategy is not None:
             new_value = self._sampling_strategy()
-        elif not self._log:
+        else:
             if self._ub is None:
                 # in unbounded mode we sample a Gaussian
                 new_value = np.random.default_rng().normal(size=self._shape)
@@ -244,14 +306,6 @@ class FloatParameter(Parameter):
                 new_value = np.random.default_rng().uniform(
                     self._lb, self._ub, size=self._shape
                 )
-        else:
-            # Log-uniform
-            new_value = np.exp(
-                np.random.default_rng().uniform(
-                    np.log(self._lb), np.log(self._ub), size=self._shape
-                )
-            )
-            # now new_value is log-scaled in interval [lb,ub]
         new_value = self._round_and_clip(new_value)
         return self._cast_if_scalar(new_value)
 
@@ -263,7 +317,7 @@ class FloatParameter(Parameter):
             new_value = call_with_temperature(
                 self._mutation_strategy, value, temperature
             )
-        elif not self._log:
+        else:
             if self._ub is None:
                 # in unbounded mode we will just add a Gaussian
                 new_value = value + np.random.default_rng().normal(
@@ -274,17 +328,69 @@ class FloatParameter(Parameter):
                 new_value = value + temperature * np.random.default_rng().uniform(
                     -spread, spread, size=self._shape
                 )
+
+        new_value = self._round_and_clip(new_value)
+        return self._cast_if_scalar(new_value)
+
+
+class LogSpaceFloatParameter(FloatParameter):
+    def __init__(
+        self,
+        shape,
+        lb,
+        ub,
+        init,
+        precision,
+        mutation_strategy,
+        sampling_strategy,
+    ):
+        super().__init__(
+            shape, lb, ub, init, precision, mutation_strategy, sampling_strategy
+        )
+
+        if lb <= 0.0:
+            raise ValueError(
+                f"Logarithmically scaled parameter must have a lower bound > 0 (got {str(lb)})"
+            )
+        self._log_param = FloatParameter(
+            shape, np.log(lb), np.log(ub), None, None, None, None
+        )
+
+    def _round(self, value):
+        if self._precision is not None:
+            if self._shape is not None:
+                raise NotImplementedError(
+                    "Setting the precision of an array parameter is not yet supported"
+                )
+            # Use string format function to round to significant decimal digits
+            # round the significant digits
+            fmt_string = "{:0." + str(self._precision) + "g}"
+            value = float(fmt_string.format(value))
+        return value
+
+    def sample(self):
+        if self._sampling_strategy is not None:
+            # Custom sampling
+            new_value = self._sampling_strategy()
         else:
-            # Temperature 1 means we multiply or divide our parameter by 10 (1000% change),
-            # temperature 0 means we change by 1%
-            factor = temperature * (10 - 1.01) + 1.01
-            factor = np.random.default_rng().uniform(1, factor, size=self._shape)
-            # Random bits to indicate if we should multiply or divide the parameter by our scale factor
-            rand_mask = np.random.default_rng().integers(0, 2, size=self._shape)
-            factor = factor * rand_mask + (1 - rand_mask) / factor
-            # now new_value is log-scaled in interval [0,1]
-            new_value = value * factor
-            # now new_value is log-scaled in interval [lb,ub]
+            new_value = self._log_param.sample()
+            new_value = np.exp(new_value)
+
+        new_value = self._round_and_clip(new_value)
+        return self._cast_if_scalar(new_value)
+
+    def mutate(self, value, temperature: float):
+        if self._mutation_strategy is not None:
+            # deep copy value in case mutation_strategy operates in-place
+            if isinstance(value, np.ndarray):
+                value = np.copy(value)
+            new_value = call_with_temperature(
+                self._mutation_strategy, value, temperature
+            )
+        else:
+            log_value = np.log(value)
+            new_value = self._log_param.mutate(log_value, temperature)
+            new_value = np.exp(new_value)
 
         new_value = self._round_and_clip(new_value)
         return self._cast_if_scalar(new_value)
