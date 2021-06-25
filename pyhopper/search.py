@@ -600,6 +600,9 @@ class Search:
         """
         self._params = {}
         self._best_solution = {}
+        self._free_params = []
+        for k, v in parameters.items():
+            self._register_parameter(k, v)
         self._best_f = None
         self._canceller = None
         self._ignore_nans = None
@@ -617,21 +620,24 @@ class Search:
         self._task_executor = None
         self._current_run_config = None
 
-        for k, v in parameters.items():
-            self._register_parameter(k, v)
-
     def __iadd__(self, other):
         self.add(other)
         return self
 
     def __setitem__(self, key, value):
-        if isinstance(value, Parameter):
-            self._params[key] = value
-            if self._best_solution.get(key) is None:
-                self._best_solution[key] = value._init
+        if key in self._free_params:
+            self._free_params.remove(key)
+        self._register_parameter(key, value)
+
+    def _register_parameter(self, name: str, param: Any) -> None:
+        if isinstance(param, Parameter):
+            self._params[name] = param
+            if self._best_solution.get(name) is None:
+                self._best_solution[name] = param._init
+            self._free_params.append(name)
         else:
-            self._params[key] = FixedParameter(value)
-            self._best_solution[key] = value
+            self._params[name] = param
+            self._best_solution[name] = param
 
     def overwrite_best(self, candidate: dict, f: Optional[float] = None) -> None:
         """Overwrites the current best solution with the provided parameter and objective function value
@@ -648,6 +654,13 @@ class Search:
                 if init is None:
                     raise ValueError(f"Parameter '{k}' has no initial value.")
         self._best_f = f
+
+    def _update_free_params(self):
+        free_params = []
+        for k, v in self._params.items():
+            if isinstance(v, Parameter):
+                free_params.append(k)
+        return free_params
 
     def forget_cached(self, candidate: dict):
         """Removes the given parameter candidate from the evaluation cache. This might be useful if a parameter value should be reevaluated.
@@ -707,70 +720,35 @@ class Search:
                     raise ValueError(f"Parameter '{k}' has no initial value.")
             self._manually_queued_candidates.append(added_candidate)
 
-    def freeze(self, name: str, value: Any = None) -> None:
-        """
-        Fixes a parameter to a certain value.
-        :param name: Name of the parameter to fix
-        :param value: Value to fix the parameter at. If None, the parameter will be fixed to the current best value
-        """
-        if name not in self._params.keys():
-            raise ValueError(f"Parameter with name '{name}' does not exist")
-        if value is not None:
-            old_param = self._params.get(name)
-            if isinstance(old_param, FrozenParameter):
-                old_param = old_param.get_old()
-            self._params[name] = FrozenParameter(value, old_param)
-        elif self._best_solution[name] is not None:
-            old_param = self._params.get(name)
-            if isinstance(old_param, FrozenParameter):
-                old_param = old_param.get_old()
-            self._params[name] = FrozenParameter(self._best_solution[name], old_param)
-        else:
-            raise ValueError(
-                f"Cannot freeze parameter '{name}'. The parameter must either have an initial value or a value must be passed to ```freeze```!"
-            )
-
-    def unfreeze(self, name: str):
-        if name not in self._params.keys():
-            raise ValueError(f"Parameter with name '{name}' does not exists")
-        param = self._params[name]
-        if not isinstance(param, FrozenParameter):
-            raise ValueError(f"Parameter '{name}' is not frozen")
-        restored_param = param.get_old()
-        self._params[name] = restored_param
-
-    def _register_parameter(self, name: str, param: Any) -> None:
-        if name in self._params.keys():
-            raise ValueError(f"Parameter with name '{name}' already exists")
-        if isinstance(param, Parameter):
-            self._params[name] = param
-            self._best_solution[name] = param._init
-        else:
-            self._params[name] = FixedParameter(param)
-            self._best_solution[name] = param
-
     def _fill_missing_init_values(self):
         for k, v in self._params.items():
-            if self._best_solution[k] is None:
+            if isinstance(v, Parameter) and self._best_solution[k] is None:
                 self._best_solution[k] = v.sample()
 
     def sample_solution(self):
         candidate = {}
         for (k, v) in self._params.items():
-            candidate[k] = v.sample()
+            if isinstance(v, Parameter):
+                candidate[k] = v.sample()
+            else:
+                candidate[k] = v
         return candidate
 
     def mutate_from_best(self, temperature):
         temperature = np.clip(temperature, 0, 1)
         candidate = {}
         for (k, v) in self._params.items():
-            # With decreasing temperature we resample/mutate fewer parameters
-            candidate[k] = v.mutate(self._best_solution[k], temperature)
-            # TODO: Implement some heuristic here
-            # if np.random.default_rng().random() <= temperature:
-            #     candidate[k] = v.mutate(self._best_solution[k], temperature)
-            # else:
-            #     candidate[k] = self._best_solution[k]
+            candidate[k] = self._best_solution[k]
+
+        # With decreasing temperature we resample/mutate fewer parameters
+        amount_to_mutate = int(
+            max(round(temperature * len(self._free_params)), 1)
+        )  # at least 1, at most all
+        params_to_mutate = np.random.default_rng().choice(
+            self._free_params, size=amount_to_mutate, replace=False
+        )
+        for k in params_to_mutate:
+            candidate[k] = self._params[k].mutate(candidate[k], temperature)
         return candidate
 
     def _submit_candidate(self, objective_function, candidate_type, candidate, kwargs):

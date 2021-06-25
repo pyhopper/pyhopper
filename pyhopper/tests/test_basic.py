@@ -110,14 +110,12 @@ def test_float_register():
     assert "lr3" in r1.keys()
     assert "lr4" in r1.keys()
     assert "lr5" in r1.keys()
-    search.freeze("lr3")
     r2 = search.run(ofall, direction="max", timeout=0.5)
     assert "lr" in r1.keys()
     assert "lr2" in r1.keys()
     assert "lr3" in r1.keys()
     assert "lr4" in r1.keys()
     assert "lr5" in r1.keys()
-    assert r1["lr3"] == r2["lr3"]
 
 
 def test_float_register_name_negative_single_bound():
@@ -238,22 +236,13 @@ def test_freeze():
             "b": pyhopper.float(0, 1),
         }
     )
-    search.freeze("a")
-    with pytest.raises(ValueError):
-        search.freeze("b")
-    with pytest.raises(ValueError):
-        search.freeze("c")
+    search["a"] = search.best["a"]
 
     search.run(of_freeze1, direction="max", max_steps=15, seeding_steps=10)
-    search.freeze("a", -20)
+    search["a"] = -20
     search.run(of_freeze2, direction="max", max_steps=15, seeding_steps=10)
-    search.freeze("a", 20)
+    search["a"] = 20
     search.run(of_freeze3, direction="max", max_steps=15, seeding_steps=10)
-    search.unfreeze("a")
-    with pytest.raises(ValueError):
-        search.unfreeze("b")
-    with pytest.raises(ValueError):
-        search.unfreeze("a")
     search.run(of_freeze4, direction="max", max_steps=15, seeding_steps=10)
 
 
