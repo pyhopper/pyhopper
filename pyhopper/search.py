@@ -18,8 +18,6 @@ from .parameters import (
     IntParameter,
     ChoiceParameter,
     CustomParameter,
-    FrozenParameter,
-    FixedParameter,
     Parameter,
     PowerOfIntParameter,
     LogSpaceFloatParameter,
@@ -47,7 +45,6 @@ class CandidateType(Enum):
     MANUALLY_ADDED = 1
     RANDOM_SEEDING = 2
     LOCAL_SAMPLING = 3
-    REEVALUATION = 4
 
 
 class ScheduledRun:
@@ -126,6 +123,10 @@ class ScheduledRun:
         return time.time() - self._start_time
 
     @property
+    def is_timeout_mode(self):
+        return self._timeout is not None
+
+    @property
     def is_mixed_endless(self):
         """
         True if in endless seeding+sampling mode
@@ -167,6 +168,10 @@ class ScheduledRun:
             # time-scheduled mode
             return np.minimum(time.time() - self._start_time, self._timeout)
         return 0
+
+    @property
+    def current_runtime(self):
+        return time.time() - self._start_time
 
     @property
     def is_disabled(self):
@@ -386,21 +391,18 @@ class LocalHistory:
             CandidateType.MANUALLY_ADDED: None,
             CandidateType.RANDOM_SEEDING: None,
             CandidateType.LOCAL_SAMPLING: None,
-            CandidateType.REEVALUATION: None,
         }
         self.amount_per_type = {
             CandidateType.INIT: 0,
             CandidateType.MANUALLY_ADDED: 0,
             CandidateType.RANDOM_SEEDING: 0,
             CandidateType.LOCAL_SAMPLING: 0,
-            CandidateType.REEVALUATION: 0,
         }
         self.runtime_per_type = {
             CandidateType.INIT: 0,
             CandidateType.MANUALLY_ADDED: 0,
             CandidateType.RANDOM_SEEDING: 0,
             CandidateType.LOCAL_SAMPLING: 0,
-            CandidateType.REEVALUATION: 0,
         }
         self.cancelled_per_type = {
             CandidateType.INIT: 0,
@@ -585,6 +587,71 @@ def register_float(
     return param
 
 
+class ProgBar:
+    def __init__(self, schedule, run_history, disable):
+        self._schedule = schedule
+        self._run_history = run_history
+
+        if self._schedule.is_endless:
+            bar_format = (
+                "Endless (stop with CTRL+C) {bar}| [{elapsed}<{remaining}{postfix}]",
+            )
+        elif self._schedule.is_timeout_mode:
+            bar_format = "{l_bar}{bar}| [{elapsed}<{remaining}{postfix}]"
+        else:
+            # step mode
+            bar_format = "{l_bar}{bar}|  [{elapsed}<{remaining}{postfix}]"
+        self._tqdm = tqdm(
+            total=self._schedule.total_units,
+            disable=disable,
+            unit="",
+            bar_format=bar_format,
+        )
+
+    def update(self, current_best):
+        self._tqdm.n = self._schedule.current_units
+        self._tqdm.set_postfix_str(self._str_time_per_eval(), refresh=False)
+        if current_best is not None:
+            self._tqdm.set_description_str(
+                f"Best f: {current_best:0.3g} (out of {self._run_history.total_amount} params)",
+                refresh=False,
+            )
+        self._tqdm.refresh()
+
+    # Endless mode:
+    # Endless (stop with CTRL+C)      best: 0.42 (out of 3213) [2.3min/param]
+    # Step
+    # 48% xXXXXXXXxxxxxxxxxxxxxxxxxxxxx | best: 0.42 (out of 3213) (00:38<1:00) [2.3min/param]
+    # Time mode
+    # 48% xXXXXXXXxxxxxxxxxxxxxxxxxxxxx | best: 0.42 (out of 3213) (00:38<1:00) [2.3min/param]
+    def _str_time_per_eval(self):
+        total_params_evaluated = (
+            self._run_history.total_amount + self._run_history.total_cancelled
+        )
+        if total_params_evaluated == 0:
+            return "..."
+        seconds_per_param = self._schedule.current_runtime / total_params_evaluated
+        if seconds_per_param <= 1:
+            return f"{1/seconds_per_param:0.1f} params/s"
+        elif seconds_per_param > 60 * 60:
+            return f"{seconds_per_param/(60*60):0.1f} h/param"
+        elif seconds_per_param > 60:
+            return f"{seconds_per_param/60:0.1f} min/param"
+        else:
+            return f"{seconds_per_param:0.1f} s/param"
+
+    def close(self, final_best):
+        self._tqdm.n = self._schedule.total_units
+        self._tqdm.set_postfix_str(self._str_time_per_eval(), refresh=False)
+        if final_best is not None:
+            self._tqdm.set_description_str(
+                f"best: {final_best:0.3g} (out of {self._run_history.total_amount})",
+                refresh=False,
+            )
+        self._tqdm.refresh()
+        self._tqdm.close()
+
+
 class Search:
     def __init__(
         self,
@@ -633,7 +700,7 @@ class Search:
         if isinstance(param, Parameter):
             self._params[name] = param
             if self._best_solution.get(name) is None:
-                self._best_solution[name] = param._init
+                self._best_solution[name] = param.initial_value
             self._free_params.append(name)
         else:
             self._params[name] = param
@@ -755,16 +822,12 @@ class Search:
         for c in self._hooked_callbacks:
             c.on_evaluate_start(candidate)
         self._f_cache.stage(candidate)
-        # In reevaluation mode we don't cancel
-        canceller = (
-            self._canceller if candidate_type != CandidateType.REEVALUATION else None
-        )
         if self._task_executor is None:
             start = time.time()
             candidate_result = execute(
                 objective_function,
                 candidate,
-                canceller,
+                self._canceller,
                 kwargs,
             )
             self._async_result_ready(
@@ -772,7 +835,7 @@ class Search:
             )
         else:
             self._task_executor.submit(
-                objective_function, candidate_type, candidate, canceller, kwargs
+                objective_function, candidate_type, candidate, self._canceller, kwargs
             )
 
     def _wait_for_one_free_executor(self):
@@ -833,8 +896,7 @@ class Search:
             c.on_evaluate_end(candidate, candidate_result.value)
 
         if (
-            candidate_type == CandidateType.REEVALUATION
-            or self._best_f is None
+            self._best_f is None
             or (self._direction == "max" and candidate_result.value > self._best_f)
             or (self._direction == "min" and candidate_result.value < self._best_f)
         ):
@@ -949,12 +1011,6 @@ class Search:
         for i in range(line_len):
             line += "="
         print(line)
-
-    def _update_pbar(self, pbar):
-        if self._best_f is None:
-            pbar.set_description(f"Currently running")
-        else:
-            pbar.set_description(f"Current best {self._best_f:0.3g}")
 
     def _initialize_for_new_run(
         self, objective_function, direction, kwargs, canceller, ignore_nans
@@ -1071,16 +1127,12 @@ class Search:
             if self._task_executor.n_jobs == 1:
                 self._task_executor = None  # '1x per-gpu' on single GPU machines -> No need for multiprocess overhead
 
-        pbar = tqdm(
-            total=schedule.total_units,
-            disable=quiet,
-            unit=schedule.unit,
-        )
         self._hook_callbacks(callbacks)
 
         self._initialize_for_new_run(
             objective_function, direction, kwargs, canceller, ignore_nans
         )
+        pbar = ProgBar(schedule, self._run_history, disable=quiet)
         if self._best_f is None:
             # Evaluate initial guess, this gives the user some estimate of how much PyHopper could tune the parameters
             self._submit_candidate(
@@ -1128,8 +1180,7 @@ class Search:
                 )
                 current_temperature = max(current_temperature, 1)
             schedule.increment_step()
-            pbar.n = schedule.current_units
-            self._update_pbar(pbar)
+            pbar.update(self._best_f)
             # Before entering the loop, let's wait until we can run at least one candidate
             self._wait_for_one_free_executor()
 
@@ -1137,9 +1188,7 @@ class Search:
 
         self._unhook_callbacks()
         self._signal_listener.unregister_signal()
-        pbar.n = schedule.total_units
-        pbar.refresh()
-        pbar.close()
+        pbar.close(self._best_f)
 
         # Clean up the task executor
         del self._task_executor

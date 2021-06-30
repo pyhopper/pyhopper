@@ -31,8 +31,8 @@ def call_with_temperature(func, value, temperature):
 
 
 class Parameter:
-    def __init__(self):
-        self._init = None
+    def __init__(self, init=None):
+        self.initial_value = init
 
     def sample(self) -> typing.Any:
         raise NotImplementedError()
@@ -43,8 +43,7 @@ class Parameter:
 
 class CustomParameter(Parameter):
     def __init__(self, init, mutation_strategy, sampling_strategy):
-        super().__init__()
-        self._init = init
+        super().__init__(init)
         self._mutation_strategy = mutation_strategy
         self._sampling_strategy = sampling_strategy
 
@@ -53,34 +52,6 @@ class CustomParameter(Parameter):
 
     def mutate(self, value, temperature: float):
         return call_with_temperature(self._mutation_strategy, value, temperature)
-
-
-class FixedParameter(Parameter):
-    def __init__(self, value):
-        super().__init__()
-        self._value = value
-
-    def sample(self):
-        return self._value
-
-    def mutate(self, value, temperature: float):
-        return self._value
-
-
-class FrozenParameter(Parameter):
-    def __init__(self, value, previous_parameter):
-        super().__init__()
-        self._value = value
-        self._previous_parameter = previous_parameter
-
-    def sample(self):
-        return self._value
-
-    def mutate(self, value, temperature: float):
-        return self._value
-
-    def get_old(self):
-        return self._previous_parameter
 
 
 class IntParameter(Parameter):
@@ -94,10 +65,9 @@ class IntParameter(Parameter):
         mutation_strategy,
         sampling_strategy,
     ):
-        super().__init__()
+        super().__init__(init)
         self._lb = lb
         self._ub = ub
-        self._init = init
         self._multiple_of = multiple_of
         self._mutation_strategy = mutation_strategy
         self._sampling_strategy = sampling_strategy
@@ -214,9 +184,8 @@ class PowerOfIntParameter(IntParameter):
 
 class ChoiceParameter(Parameter):
     def __init__(self, options, init, is_ordinal, mutation_strategy, sampling_strategy):
-        super().__init__()
+        super().__init__(init)
         self._options = options
-        self._init = init
         self._is_ordinal = is_ordinal
         self._mutation_strategy = mutation_strategy
         self._sampling_strategy = sampling_strategy
@@ -237,9 +206,11 @@ class ChoiceParameter(Parameter):
                 self._mutation_strategy, value, temperature
             )
         elif self._is_ordinal:
+            # Values are ordered/related -> prefer adjacent items
             index = self._options.index(value)
             new_value = self._options[self._int_param.mutate(index, temperature)]
         else:
+            # Values are not ordered/related -> just pick any item
             new_value = self._options[self._int_param.sample()]
         return new_value
 
@@ -255,10 +226,9 @@ class FloatParameter(Parameter):
         mutation_strategy,
         sampling_strategy,
     ):
-        super().__init__()
+        super().__init__(init)
         self._lb = lb
         self._ub = ub
-        self._init = init
         self._precision = precision
         self._mutation_strategy = mutation_strategy
         self._sampling_strategy = sampling_strategy
