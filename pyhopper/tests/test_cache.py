@@ -101,5 +101,29 @@ def test_cache():
     assert b2 in cache
 
 
-# if __name__ == "__main__":
-#     test_simple1()
+def test_cache_tuple():
+    cache = EvaluationCache()
+    e1 = (1, 2, 3, 4)
+    e2 = (70, 40, 30)
+    e3 = (70, 40, 30)
+    assert e1 not in cache
+    assert e2 not in cache
+    cache.stage(e1)
+    assert e1 in cache
+    assert e2 not in cache
+    cache.stage(e2)
+    assert e1 in cache
+    assert e2 in cache
+    assert e3 in cache
+    cache.commit(e2, 0.5)
+    assert e1 in cache
+    assert e2 in cache
+    assert e3 in cache
+    cache.commit(e1, 0.5)
+    assert e1 in cache
+    assert e2 in cache
+    assert e3 in cache
+
+
+if __name__ == "__main__":
+    test_cache_tuple()

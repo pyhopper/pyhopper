@@ -641,14 +641,7 @@ class ProgBar:
             return f"{seconds_per_param:0.1f} s/param"
 
     def close(self, final_best):
-        self._tqdm.n = self._schedule.total_units
-        self._tqdm.set_postfix_str(self._str_time_per_eval(), refresh=False)
-        if final_best is not None:
-            self._tqdm.set_description_str(
-                f"best: {final_best:0.3g} (out of {self._run_history.total_amount})",
-                refresh=False,
-            )
-        self._tqdm.refresh()
+        self.update(final_best)
         self._tqdm.close()
 
 
@@ -667,7 +660,7 @@ class Search:
         """
         self._params = {}
         self._best_solution = {}
-        self._free_params = []
+        self._free_params = {}
         for k, v in parameters.items():
             self._register_parameter(k, v)
         self._best_f = None
@@ -692,8 +685,8 @@ class Search:
         return self
 
     def __setitem__(self, key, value):
-        if key in self._free_params:
-            self._free_params.remove(key)
+        if key in self._free_params.keys():
+            del self._free_params[key]
         self._register_parameter(key, value)
 
     def _register_parameter(self, name: str, param: Any) -> None:
@@ -701,7 +694,7 @@ class Search:
             self._params[name] = param
             if self._best_solution.get(name) is None:
                 self._best_solution[name] = param.initial_value
-            self._free_params.append(name)
+            self._free_params[name] = param
         else:
             self._params[name] = param
             self._best_solution[name] = param
@@ -812,7 +805,7 @@ class Search:
             max(round(temperature * len(self._free_params)), 1)
         )  # at least 1, at most all
         params_to_mutate = np.random.default_rng().choice(
-            self._free_params, size=amount_to_mutate, replace=False
+            list(self._free_params.values()), size=amount_to_mutate, replace=False
         )
         for k in params_to_mutate:
             candidate[k] = self._params[k].mutate(candidate[k], temperature)
@@ -1093,6 +1086,11 @@ class Search:
         """
         if kwargs is None:
             kwargs = {}
+
+        if len(self._free_params) == 0:
+            raise ValueError(
+                "There are not parameters to optimize (search space does not contain any `pyhopper.Parameter` instance)"
+            )
 
         self._current_run_config = {
             "direction": direction,

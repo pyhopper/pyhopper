@@ -39,6 +39,11 @@ outputs
     > {'my_const': 'cifar10', 'my_int': 438, 'my_float': 0.1960442887, 'my_choice': 'sgd'}
     > {'my_const': 'cifar10', 'my_int': 156, 'my_float': 0.2719664365, 'my_choice': 'sgd'}
 
+.. note::
+
+    Setting :code:`quiet=False` (which is default) prints a progress bar during the search and a short summary at the end of the search.
+
+
 -----------------------------
 Hyperparameter types
 -----------------------------
@@ -126,7 +131,7 @@ To limit the precision, we can use the :code:`precision` argument.
 :meth:`pyhopper.choice` requires a :code:`list` of possible values for this hyperparameter.
 Similar to before, we can provide an initial guess.
 In case the values in the list are provided in a **structured order**, setting the :code:`is_ordinal` argument indicates pyhopper to preserve this order when sampling.
-For instance, in the example below, the parameter :code:`"opt"` has no ordering but :code:`"dropout"` has, making pyhopper sample only adjacent items.
+For instance, in the example below, the parameter :code:`"opt"` has no ordering but :code:`"dropout"` has, making pyhopper sample items adjacent to the current best value.
 
 .. code-block:: python
 
@@ -166,7 +171,7 @@ For instance,
    import time
 
    def of(param):
-       time.sleep(1)      # some very slow code
+       time.sleep(1)      # some slow code
        return param["x"]
 
    search = pyhopper.Search({"x": pyhopper.float(0, 1)})
