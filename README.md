@@ -5,7 +5,7 @@
 ![downloads](https://img.shields.io/pypi/dm/pyhopper)
 
 
-PyHopper is a hyperparameter optimizer, made specifically for high-dimensional problems arising in deep learning.
+PyHopper is a hyperparameter optimizer, made specifically for high-dimensional problems arising in machine learning research.
 
 ```bash
 pip3 install -U pyhopper
@@ -16,7 +16,7 @@ PyHopper is lightweight, rich in features, and requires minimal changes to exist
 ```python
 import pyhopper
 
-def objective(params: dict) -> float:
+def my_objective(params: dict) -> float:
     model = build_model(params["hidden_size"],...)
     # .... train and evaluate the model
     return val_accuracy
@@ -28,14 +28,14 @@ search = pyhopper.Search(
         "opt": pyhopper.choice(["adam","rmsprop","sgd"]),
     }
 )
-best_params = search.run(objective, "maximize", "1h 30min", n_jobs="per-gpu")
+best_params = search.run(my_objective, "maximize", "1h 30min", n_jobs="per-gpu")
 ```
 
 Its most important features are
 
-- runs parallel on multiple GPUs
-- natively supports NumPy array parameters with millions of dimensions
-- is highly customizable (e.g. you can directly tune entire ```torch.Tensor``` hyperparameters)
+- 1-line multi GPU parallelization
+- natively NumPy array hyperparameters support
+- highly customizable (e.g. you can directly tune entire ```torch.Tensor``` hyperparameters)
 
 Under its hood, PyHopper uses an efficient 2-stage Markov chain Monte Carlo (MCMC) optimization algorithm.
 

@@ -31,7 +31,7 @@ and straightforward to use
     )
     best_params = search.run(objective, "maximize", "1h 30min")
 
-The PyHopper's tuning process is a powerful **Markov chain Monte Carlo** (MCMC) sampler that
+The PyHopper's tuning algorithm is a powerful **Markov chain Monte Carlo** (MCMC) sampler that
 
 - runs parallel across multiple CPUs and GPUs
 - natively supports NumPy array parameters with millions of dimensions
