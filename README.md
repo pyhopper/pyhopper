@@ -1,4 +1,4 @@
-<p><img src="https://raw.githubusercontent.com/pyhopper/pyhopper/main/docs/img/pyhopper_64.png"/><h3>PyHopper -  High-dim hyperparameter tuning made easy</h3></p>
+# PyHopper -  High-dim hyperparameter tuning made easy
 
 ![ci_badge](https://github.com/PyHopper/PyHopper/actions/workflows/continuous_integration.yml/badge.svg) [![Documentation Status](https://readthedocs.org/projects/pyhopper/badge/?version=latest)](https://pyhopper.readthedocs.io/en/latest/?badge=latest) ![pyversion](docs/img/pybadge.svg)
 ![PyPI version](https://img.shields.io/pypi/v/pyhopper)
