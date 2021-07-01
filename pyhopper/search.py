@@ -805,7 +805,7 @@ class Search:
             max(round(temperature * len(self._free_params)), 1)
         )  # at least 1, at most all
         params_to_mutate = np.random.default_rng().choice(
-            list(self._free_params.values()), size=amount_to_mutate, replace=False
+            list(self._free_params.keys()), size=amount_to_mutate, replace=False
         )
         for k in params_to_mutate:
             candidate[k] = self._params[k].mutate(candidate[k], temperature)
