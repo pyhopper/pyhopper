@@ -1,6 +1,7 @@
 import pickle
 import os
 
+import pyhopper
 from pyhopper.utils import ParamInfo
 import time
 
