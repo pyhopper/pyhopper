@@ -7,6 +7,7 @@
 
 PyHopper is a hyperparameter optimizer, made specifically for high-dimensional problems arising in machine learning research.
 
+
 ```bash
 pip3 install -U pyhopper
 ```

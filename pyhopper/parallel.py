@@ -337,7 +337,7 @@ class TaskManager:
     def shutdown(self):
         self._backend_task_executor.shutdown(wait=False)
 
-    def submit(self, objective_function, candidate_type, candidate, canceller, kwargs):
+    def submit(self, objective_function, candidate, param_info, canceller, kwargs):
         gpu_arg = None
         if self._gpu_allocator is not None:
             # GPU Mode -> Get a free GPU
@@ -355,7 +355,7 @@ class TaskManager:
             # GPU Mode -> Mark GPU as allocated by the future object
             self._gpu_allocator.alloc(res, gpu_arg)
         self._pending_futures.append(res)
-        self._pending_candidates.append((candidate_type, time.time(), candidate))
+        self._pending_candidates.append((candidate, param_info))
 
     def wait_for_first_to_complete(self):
         if len(self._pending_futures) <= 0:
@@ -384,11 +384,12 @@ class TaskManager:
                 if self._gpu_allocator is not None:
                     # GPU Mode -> Mark GPU as freed
                     self._gpu_allocator.free(self._pending_futures[i])
-                candidate_type, start_time, candidate = self._pending_candidates[i]
+                candidate, param_info = self._pending_candidates[i]
+                param_info.finished_at = time.time()
                 future = self._pending_futures[i]
                 self._pending_futures.pop(i)
                 self._pending_candidates.pop(i)
-                yield candidate_type, candidate, time.time() - start_time, future.result()
+                yield candidate, param_info, future.result()
             else:
                 i += 1
 

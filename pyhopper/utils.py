@@ -11,10 +11,24 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-
+from enum import Enum
 from typing import Union
 import numpy as np
+
+
+class ParamInfo:
+    def __init__(self, candidate_type, sampled_at):
+        self.type = candidate_type
+        self.sampled_at = sampled_at
+        self.finished_at = None
+        self.is_canceled = False
+
+
+class CandidateType(Enum):
+    INIT = 0
+    MANUALLY_ADDED = 1
+    RANDOM_SEEDING = 2
+    LOCAL_SAMPLING = 3
 
 
 class NTimesEvaluator:

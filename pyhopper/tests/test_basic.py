@@ -279,4 +279,4 @@ def test_add_m():
 
 
 if __name__ == "__main__":
-    test_freeze()
+    test_simple1()
