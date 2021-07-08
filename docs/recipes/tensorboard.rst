@@ -1,7 +1,7 @@
 Tracking with Tensorboard
 ----------------------------------------------------------
 
-Hyperparameter experiments can be tracked with `Tensorboard <https://www.tensorflow.org/tensorboard/get_started/>`_ and `Weights & Biases <https://wandb.ai/>`_ via the  :meth:`pyhopper.callbacks.tensorboard.TensorboardCallback` callback.
+Hyperparameter experiments can be tracked with `Tensorboard <https://www.tensorflow.org/tensorboard/get_started/>`_ via the  :meth:`pyhopper.callbacks.tensorboard.TensorboardCallback` callback.
 
 .. attention::
 
