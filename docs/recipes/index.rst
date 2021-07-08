@@ -13,6 +13,7 @@ In this guide we discuss the most common advanced uses cases of PyHopper.
     custom_types
     cancellers
     nans
+    tensorboard
     mlflow
     custom_validation
     custom_callbacks

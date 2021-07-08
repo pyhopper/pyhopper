@@ -15,19 +15,19 @@ class MLflowCallback:
     def on_search_start(self, search):
         mlflow.log_params(search.current_run_config)
 
-    def on_evaluate_start(self, candidate):
+    def on_evaluate_start(self, candidate, param_info):
         pass
 
-    def on_evaluate_end(self, candidate, f):
+    def on_evaluate_end(self, candidate, f, param_info):
 
         mlflow.log_metric("sampled_f", f)
 
-    def on_new_best(self, new_best, f):
+    def on_new_best(self, new_best, f, param_info):
         self._best_params = new_best
 
         mlflow.log_metric("best_f", f)
 
-    def on_search_end(self, history):
+    def on_search_end(self):
         os.makedirs("pyhopper_runs", exist_ok=True)
         filename = os.path.join(
             "pyhopper_runs", datetime.now().strftime("best_params_%Y%m%d_%H%M%S.pkl")

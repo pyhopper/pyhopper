@@ -32,6 +32,7 @@ search = pyhopper.Search(
     {
         "hidden_size": pyhopper.int(100,500),
         "dropout_rate": pyhopper.float(0,0.4),
+        "matrix": pyhopper.float(-1,1,shape=(20,20)),
         "opt": pyhopper.choice(["adam","rmsprop","sgd"]),
     }
 )
@@ -54,6 +55,6 @@ For more info, check out [PyHopper's documentation](https://pyhopper.readthedocs
 
 
 
-Copyright ©2018-2021. Mathias Lechner
-Copyright ©2018-2021. Institute of Science and Technology Austria (IST Austria)
-Copyright ©2021. Simple-AI
+Copyright ©2018-2021. Mathias Lechner  
+Copyright ©2018-2021. Institute of Science and Technology Austria (IST Austria)  
+Copyright ©2021. Simple-AI  
