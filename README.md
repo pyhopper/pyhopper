@@ -1,3 +1,5 @@
+<div align="center"><img src="https://raw.githubusercontent.com/pyhopper/pyhopper/main/docs/img/banner_gray.png" width="800"/></div>
+
 # PyHopper -  High-dim hyperparameter tuning made easy
 
 ![ci_badge](https://github.com/PyHopper/PyHopper/actions/workflows/continuous_integration.yml/badge.svg) [![Documentation Status](https://readthedocs.org/projects/pyhopper/badge/?version=latest)](https://pyhopper.readthedocs.io/en/latest/?badge=latest) ![pyversion](docs/img/pybadge.svg)
