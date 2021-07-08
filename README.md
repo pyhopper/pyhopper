@@ -6,9 +6,13 @@
 ![PyPI version](https://img.shields.io/pypi/v/pyhopper)
 ![downloads](https://img.shields.io/pypi/dm/pyhopper)
 
+[**Website**](https://pyhopper.io)
+| [**Docs**](https://pyhopper.readthedocs.io/)
+| [**Quickstart**](https://pyhopper.readthedocs.io/en/latest/quickstart.html)
+| [![Colab Tutorial](https://colab.research.google.com/assets/colab-badge.svg)](comming soon)
+
 
 PyHopper is a hyperparameter optimizer, made specifically for high-dimensional problems arising in machine learning research.
-
 
 ```bash
 pip3 install -U pyhopper
@@ -50,5 +54,6 @@ For more info, check out [PyHopper's documentation](https://pyhopper.readthedocs
 
 
 
-
+Copyright ©2018-2021. Mathias Lechner
 Copyright ©2018-2021. Institute of Science and Technology Austria (IST Austria)
+Copyright ©2021. Simple-AI
