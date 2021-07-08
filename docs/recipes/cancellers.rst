@@ -25,7 +25,7 @@ In particular, PyHopper supports Python generators functions as objective functi
     )
     search.run(dummy_of, max_steps=5, quiet=True)
 
-By default PyHopper uses the **last item** of the iterator as objective score and ignore the values yielded before.
+By default PyHopper uses the **last item** of the iterator as objective score and ignores the values yielded before.
 However, the values yielded before can be used for detecting and consequently discontinuing unpromising evaluations.
 
 To determine if an evaluation should be discontinued or not PyHopper provides the :meth:`pyhopper.cancellers.EarlyCanceller` interface, which can be passed to calls of :code:`Search.run`.
@@ -43,7 +43,7 @@ For example
         evals = []
         for i in range(5):
             evals.append(noisy_objective(param))
-            yield np.mean(evals)
+            yield np.mean(evals)                 # Current estimate of the objective
 
     search = pyhopper.Search(
         {

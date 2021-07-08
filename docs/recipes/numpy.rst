@@ -9,7 +9,7 @@ If :code:`shape` is a tuple of integers the created parameter values will be of 
 
     import pyhopper
 
-    def of(param):
+    def dummy_of(param):
         print(param)
         return 0
 
@@ -20,7 +20,7 @@ If :code:`shape` is a tuple of integers the created parameter values will be of 
             "2d": pyhopper.float(-1, 1, shape=(2, 2)),
         }
     )
-    search.run(of, max_steps=3, quiet=True)
+    search.run(dummy_of, max_steps=3, quiet=True)
 
 produces
 

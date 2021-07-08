@@ -43,3 +43,10 @@ Under its hood, PyHopper uses an efficient 2-stage Markov chain Monte Carlo (MCM
 ![alt](docs/img/sampling.webp)
 
 For more info, check out [PyHopper's documentation](https://pyhopper.readthedocs.io/)
+
+
+
+
+
+
+Copyright ©2018-2021. Institute of Science and Technology Austria (IST Austria)

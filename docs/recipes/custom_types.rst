@@ -65,3 +65,7 @@ Alternatively, we can use the :meth:`pyhopper.custom` parameter template and pas
     > {'other_option': tensor([[-1.0080,  0.9658], [ 0.6401,  1.0016]])}
     > {'other_option': tensor([[-0.1377,  0.5059], [-1.1958,  1.3582]])}
     > {'other_option': tensor([[1.3503, 0.7410], [1.9922, 1.4300]])}
+
+.. tip::
+
+    To use PyHopper's built-in parameter type features for :code:torch.Tensor: types, we could also just use the built-in NumPy parameters and `convert them to torch.Tensor objects <https://pytorch.org/tutorials/beginner/blitz/tensor_tutorial.html#numpy-array-to-tensor>`_.

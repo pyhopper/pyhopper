@@ -131,8 +131,7 @@ To limit the precision, we can use the :code:`precision` argument.
 :meth:`pyhopper.choice` requires a :code:`list` of possible values for this hyperparameter.
 Similar to before, we can provide an initial guess.
 In case the values in the list are provided in a **structured order**, setting the :code:`is_ordinal` argument indicates pyhopper to preserve this order when sampling.
-For instance, in the example below, the parameter :code:`"opt"` has no ordering but :code:`"dropout"` has, making pyhopper sample items adjacent to the current best value.
-
+For instance in
 .. code-block:: python
 
     search = pyhopper.Search(
@@ -141,6 +140,8 @@ For instance, in the example below, the parameter :code:`"opt"` has no ordering 
             "dropout": pyhopper.choice([0, 0.1, 0.2, 0.3], is_ordinal=True),
         }
     )
+
+the parameter :code:`"opt"` has no ordering but :code:`"dropout"` has, making pyhopper sample items adjacent to the current best value.
 
 .. code-block:: text
 
@@ -154,7 +155,7 @@ Running PyHopper
 
 Once we have defined the search space, we can schedule the search using the :meth:`pyhopper.Search.run` method.
 The method requires three argument: The objective function, the direction of the search (minimize or maximize), and runtime of the search.
-For specifying the runtime, we can provide a string that is parse by :meth:`pyhopper.parse_timeout` or simply an integer/float with the runtime in seconds.
+For specifying the runtime, we can provide a string that is parsed by :meth:`pyhopper.parse_timeout` or simply an integer/float with the runtime in seconds.
 
 .. code-block:: python
 

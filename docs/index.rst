@@ -45,4 +45,5 @@ User’s Guide
     quickstart
     walkthrough
     recipes/index
+    examples/index
     api/index

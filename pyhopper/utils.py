@@ -17,11 +17,26 @@ import numpy as np
 
 
 class ParamInfo:
+    """Holds auxiliary information about a parameter candidate
+
+    Attributes:
+        ``type``     Enum specifying how the parameter was sampled (valid values are pyhopper.CandidateType.INIT, pyhopper.CandidateType.MANUALLY_ADDED, pyhopper.CandidateType.RANDOM_SEEDING, pyhopper.CandidateType.LOCAL_SAMPLING).
+
+        ``sampled_at``  UNIX epoch timestamp when the parameter candidate was sampled.
+
+        ``finished_at``  UNIX epoch timestamp when the evaluation of the candidate was finished.
+
+        ``is_canceled``  Bool indicating if the candidate was cancelled.
+    """
+
+    type = None
+    sampled_at = None
+    finished_at = None
+    is_canceled = False
+
     def __init__(self, candidate_type, sampled_at):
         self.type = candidate_type
         self.sampled_at = sampled_at
-        self.finished_at = None
-        self.is_canceled = False
 
 
 class CandidateType(Enum):
