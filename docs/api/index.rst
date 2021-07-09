@@ -10,4 +10,4 @@ API Reference
     parameters
     utils
     callbacks
-    cancellers
+    cancelers
