@@ -18,7 +18,6 @@ import os
 from types import GeneratorType
 import numpy as np
 import sys
-import gc
 import subprocess
 from xml.etree.ElementTree import fromstring
 
@@ -232,7 +231,6 @@ def execute(objective_function, candidate, canceller, kwargs, remote=False, gpu=
         # we may need the information if the cancellation was done by the user inside the objective function
         # or by an EarlyCanceller
         eval_result.cancelled_by_user = True
-    gc.collect()
     return eval_result
 
 

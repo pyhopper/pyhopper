@@ -132,6 +132,7 @@ To limit the precision, we can use the :code:`precision` argument.
 Similar to before, we can provide an initial guess.
 In case the values in the list are provided in a **structured order**, setting the :code:`is_ordinal` argument indicates pyhopper to preserve this order when sampling.
 For instance in
+
 .. code-block:: python
 
     search = pyhopper.Search(

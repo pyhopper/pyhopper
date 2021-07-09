@@ -40,7 +40,7 @@ An example of both options for :code:`torch.Tensor` type parameters is
     > {'torch_param': tensor([[0.7232, 0.1011], [0.0034, 0.0875]])}
 
 
-Alternatively, we can use the :meth:`pyhopper.custom` parameter template and pass the :code:`seeding_strategy` and :code:`mutation_strategy` functional arguments:
+Alternatively, we can use the :meth:`pyhopper.custom` parameter template and pass the :code:`seeding_fn` and :code:`mutation_fn` functional arguments:
 
 .. code-block:: python
 
@@ -68,4 +68,4 @@ Alternatively, we can use the :meth:`pyhopper.custom` parameter template and pas
 
 .. tip::
 
-    To use PyHopper's built-in parameter type features for :code:torch.Tensor: types, we could also just use the built-in NumPy parameters and `convert them to torch.Tensor objects <https://pytorch.org/tutorials/beginner/blitz/tensor_tutorial.html#numpy-array-to-tensor>`_.
+    To use PyHopper's built-in parameter type features for :code:`torch.Tensor` types, we could also just use the built-in NumPy parameters and `convert them to torch.Tensor objects <https://pytorch.org/tutorials/beginner/blitz/tensor_tutorial.html#numpy-array-to-tensor>`_.

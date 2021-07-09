@@ -48,8 +48,8 @@ def register_int(
     multiple_of: Optional[int] = None,
     power_of: Optional[int] = None,
     shape: Optional[Union[int, Tuple]] = None,
-    mutation_strategy: Optional[callable] = None,
-    sampling_strategy: Optional[callable] = None,
+    seeding_fn: Optional[callable] = None,
+    mutation_fn: Optional[callable] = None,
 ) -> IntParameter:
     """Creates a new integer parameter
 
@@ -58,9 +58,9 @@ def register_int(
     :param init: Initial value of the parameter. If None it will be randomly sampled
     :param multiple_of: Setting this value to a positive integer enforces the sampled values of this parameter to be a mulitple of `multiple_of`.
     :param shape: For NumPy array type parameters, this argument must be set to a tuple containing the shape of the np.ndarray
-    :param mutation_strategy: Setting this argument to a callable overwrites the default local sampling strategy. The callback gets called with the value
+    :param mutation_fn: Setting this argument to a callable overwrites the default local sampling strategy. The callback gets called with the value
         of the the current best solution as argument and returns a mutated value
-    :param sampling_strategy: Setting this argument to a callable overwrites the default random seeding strategy
+    :param seeding_fn: Setting this argument to a callable overwrites the default random seeding strategy
     :return:
     """
     if lb is None and ub is None:
@@ -81,8 +81,8 @@ def register_int(
             init,
             power_of,
             multiple_of,
-            mutation_strategy,
-            sampling_strategy,
+            mutation_fn,
+            seeding_fn,
         )
     param = IntParameter(
         param_shape,
@@ -90,22 +90,22 @@ def register_int(
         ub,
         init,
         multiple_of,
-        mutation_strategy,
-        sampling_strategy,
+        mutation_fn,
+        seeding_fn,
     )
     return param
 
 
 def register_custom(
-    seeding_strategy: Optional[callable] = None,
-    mutation_strategy: Optional[callable] = None,
+    seeding_fn: Optional[callable] = None,
+    mutation_fn: Optional[callable] = None,
     init: Any = None,
 ) -> CustomParameter:
-    if seeding_strategy is None and init is None:
+    if seeding_fn is None and init is None:
         raise ValueError(
             f"Could not create custom parameter, must either provide an initial value or a seeding strategy function"
         )
-    param = CustomParameter(init, mutation_strategy, seeding_strategy)
+    param = CustomParameter(init, mutation_fn, seeding_fn)
     return param
 
 
@@ -113,24 +113,22 @@ def register_choice(
     options: list,
     init: Optional[Any] = None,
     is_ordinal: bool = False,
-    mutation_strategy: Optional[FunctionType] = None,
-    seeding_strategy: Optional[FunctionType] = None,
+    mutation_fn: Optional[FunctionType] = None,
+    seeding_fn: Optional[FunctionType] = None,
 ) -> ChoiceParameter:
     """Creates a new choice parameter
 
     :param options: List containing the possible values of this parameter
     :param init: Initial value of the parameter. If None it will be randomly sampled.
     :param is_ordinal: Flag indicating whether two neighboring list items ordered or not. If True, in the local sampling stage list items neighboring the current best value will be preferred. For sets with a natural ordering it is recommended to set this flag to True.
-    :param mutation_strategy: Setting this argument to a callable overwrites the default local sampling strategy. The callback gets called with the value
+    :param mutation_fn: Setting this argument to a callable overwrites the default local sampling strategy. The callback gets called with the value
         of the the current best solution as argument and returns a mutated value
-    :param seeding_strategy: Setting this argument to a callable overwrites the default random seeding strategy
+    :param seeding_fn: Setting this argument to a callable overwrites the default random seeding strategy
     :return:
     """
     if len(options) == 0:
         raise ValueError("List with possible values must not be empty.")
-    param = ChoiceParameter(
-        options, init, is_ordinal, mutation_strategy, seeding_strategy
-    )
+    param = ChoiceParameter(options, init, is_ordinal, mutation_fn, seeding_fn)
     return param
 
 
@@ -141,8 +139,8 @@ def register_float(
     log: Union[bool] = False,
     precision: Optional[int] = None,
     shape: Optional[Union[int, Tuple]] = None,
-    mutation_strategy: Optional[FunctionType] = None,
-    seeding_strategy: Optional[FunctionType] = None,
+    mutation_fn: Optional[FunctionType] = None,
+    seeding_fn: Optional[FunctionType] = None,
 ) -> FloatParameter:
     """Creates a new floating point parameter
 
@@ -155,9 +153,9 @@ def register_float(
         If True, a logarithmic scaling is applied to the search space of this variable
     :param precision: Rounds the values to the specified significant digits.
         Defaults to None meaning that no rounding is applied
-    :param mutation_strategy: Setting this argument to a callable overwrites the default local sampling strategy. The callback gets called with the value
+    :param mutation_fn: Setting this argument to a callable overwrites the default local sampling strategy. The callback gets called with the value
         of the the current best solution as argument and returns a mutated value
-    :param seeding_strategy: Setting this argument to a callable overwrites the default random seeding strategy
+    :param seeding_fn: Setting this argument to a callable overwrites the default random seeding strategy
     """
     lb, ub = sanitize_bounds(lb, ub)
     if log and (lb is None or ub is None):
@@ -172,7 +170,7 @@ def register_float(
     param_shape = infer_shape(init, lb, ub) if shape is None else shape
     if log:
         return LogSpaceFloatParameter(
-            param_shape, lb, ub, init, precision, mutation_strategy, seeding_strategy
+            param_shape, lb, ub, init, precision, mutation_fn, seeding_fn
         )
     param = FloatParameter(
         param_shape,
@@ -180,8 +178,8 @@ def register_float(
         ub,
         init,
         precision,
-        mutation_strategy,
-        seeding_strategy,
+        mutation_fn,
+        seeding_fn,
     )
     return param
 

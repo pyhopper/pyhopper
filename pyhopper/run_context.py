@@ -226,10 +226,11 @@ class ProgBar(Callback):
             unit="",
             bar_format=bar_format,
         )
+        self._last_refreshed = time.time()
 
     def on_search_start(self, search):
         if not self.disabled:
-            print(f"Search is scheduled for {self._schedule.to_total_str()}")
+            self._tqdm.write(f"Search is scheduled for {self._schedule.to_total_str()}")
 
     def on_evaluate_end(self, new_best: dict, f: float, info: ParamInfo):
         self.update()
@@ -245,7 +246,10 @@ class ProgBar(Callback):
                 f"Best f: {self._run_history.best_f:0.3g} (out of {self._run_history.total_amount} params)",
                 refresh=False,
             )
-        self._tqdm.refresh()
+        # TODO: Maybe there is some more elegant way implemented in tqdm
+        if time.time() - self._last_refreshed > 0.2:
+            self._last_refreshed = time.time()
+            self._tqdm.refresh()
 
     # Endless mode:
     # Endless (stop with CTRL+C)      best: 0.42 (out of 3213) [2.3min/param]
