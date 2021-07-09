@@ -163,9 +163,9 @@ class GPUAllocator:
 class EvaluationResult:
     def __init__(self):
         self.value = None
-        self.was_cancelled = None
-        self.cancelled_by_user = False
-        self.cancelled_by_nan = False
+        self.was_canceled = None
+        self.canceled_by_user = False
+        self.canceled_by_nan = False
         self.intermediate_results = None
 
 
@@ -178,7 +178,7 @@ def dummy_signal_handler(sig, frame):
     # os.kill()
 
 
-def execute(objective_function, candidate, canceller, kwargs, remote=False, gpu=None):
+def execute(objective_function, candidate, canceler, kwargs, remote=False, gpu=None):
     """
     Wrapper function for the objective function that takes care of GPU allocation and the SIGINT signal handle
     """
@@ -208,14 +208,14 @@ def execute(objective_function, candidate, canceller, kwargs, remote=False, gpu=
                     eval_result.intermediate_results.append(ir)
                     eval_result.value = ir
                     if np.isnan(ir):
-                        eval_result.was_cancelled = True
-                        eval_result.cancelled_by_nan = True
+                        eval_result.was_canceled = True
+                        eval_result.canceled_by_nan = True
                         repeat = False
-                    if canceller is not None and canceller.should_cancel(
+                    if canceler is not None and canceler.should_cancel(
                         eval_result.intermediate_results
                     ):
                         # Let's not continue from here on
-                        eval_result.was_cancelled = True
+                        eval_result.was_canceled = True
                         repeat = False
                 except StopIteration:
                     repeat = False
@@ -223,14 +223,14 @@ def execute(objective_function, candidate, canceller, kwargs, remote=False, gpu=
             # No iterator but a simple function
             eval_result.value = iter_or_result
             if np.isnan(iter_or_result):
-                eval_result.was_cancelled = True
-                eval_result.cancelled_by_nan = True
+                eval_result.was_canceled = True
+                eval_result.canceled_by_nan = True
     except CancelEvaluation:
-        # If objective function raises this error, the evaluation will be treated as being cancelled
-        eval_result.was_cancelled = True
-        # we may need the information if the cancellation was done by the user inside the objective function
-        # or by an EarlyCanceller
-        eval_result.cancelled_by_user = True
+        # If objective function raises this error, the evaluation will be treated as being canceled
+        eval_result.was_canceled = True
+        # we may need the information if the cancelation was done by the user inside the objective function
+        # or by an Earlycanceler
+        eval_result.canceled_by_user = True
     return eval_result
 
 
@@ -335,7 +335,7 @@ class TaskManager:
     def shutdown(self):
         self._backend_task_executor.shutdown(wait=False)
 
-    def submit(self, objective_function, candidate, param_info, canceller, kwargs):
+    def submit(self, objective_function, candidate, param_info, canceler, kwargs):
         gpu_arg = None
         if self._gpu_allocator is not None:
             # GPU Mode -> Get a free GPU
@@ -344,7 +344,7 @@ class TaskManager:
             execute,
             objective_function,
             candidate,
-            canceller,
+            canceler,
             kwargs,
             True,  # remote = True
             gpu_arg,

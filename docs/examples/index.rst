@@ -7,3 +7,4 @@ Examples
     :titlesonly:
 
     cartpole
+    tsp

@@ -16,7 +16,7 @@
 import numpy as np
 
 
-class EarlyCanceller:
+class EarlyCanceler:
     def __init__(self):
         self.direction = None
 
@@ -43,7 +43,7 @@ class EarlyCanceller:
         raise NotImplementedError()
 
 
-class QuantileCanceller(EarlyCanceller):
+class QuantileCanceler(EarlyCanceler):
     def __init__(self, q, warmup=5):
         super().__init__()
         if 1 <= q < 100:
@@ -89,7 +89,7 @@ class QuantileCanceller(EarlyCanceller):
         return not self.is_better_or_equal(partial_results[new_index], quantile)
 
 
-class TopKCanceller(EarlyCanceller):
+class TopKCanceler(EarlyCanceler):
     def __init__(self, k):
         super().__init__()
         self.k = k

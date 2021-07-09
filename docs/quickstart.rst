@@ -240,7 +240,7 @@ For exactly this reason, PyHopper provides the :meth:`pyhopper.wrap_n_times` fun
 .. note::
 
     To reduce the computational cost of evaluating each candidate multiple times, PyHopper allows cancelling candidates if
-    their first evaluation shows that they have only a small chance of becoming the best hyperparameters. See :ref:`cancelling-label` for more details.
+    their first evaluation shows that they have only a small chance of becoming the best hyperparameters. See :ref:`canceling-label` for more details.
 
 -----------------------------
 A putting things together

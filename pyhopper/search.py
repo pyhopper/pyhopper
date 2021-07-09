@@ -346,7 +346,7 @@ class Search:
             candidate_result = execute(
                 objective_function,
                 candidate,
-                self._run_context.canceller,
+                self._run_context.canceler,
                 kwargs,
             )
             param_info.finished_at = time.time()
@@ -356,7 +356,7 @@ class Search:
                 objective_function,
                 candidate,
                 param_info,
-                self._run_context.canceller,
+                self._run_context.canceler,
                 kwargs,
             )
 
@@ -384,27 +384,27 @@ class Search:
                 self._async_result_ready(candidate, param_info, candidate_result)
 
     def _async_result_ready(self, candidate, param_info, candidate_result):
-        if candidate_result.cancelled_by_nan and not self._run_context.ignore_nans:
+        if candidate_result.canceled_by_nan and not self._run_context.ignore_nans:
             raise ValueError(
-                "NaN returned in objective function. If NaNs should be ignored (treated as cancelled evaluations) pass 'ignore_nans=True' argument to 'run'"
+                "NaN returned in objective function. If NaNs should be ignored (treated as canceled evaluations) pass 'ignore_nans=True' argument to 'run'"
             )
         self._f_cache.commit(candidate, candidate_result.value)
         if (
-            self._run_context.canceller is not None
-            and not candidate_result.cancelled_by_user
-            and not candidate_result.cancelled_by_nan
+            self._run_context.canceler is not None
+            and not candidate_result.canceled_by_user
+            and not candidate_result.canceled_by_nan
         ):
-            # If the cancellation was done by the user or NaN we should not tell the EarlyCanceller object
+            # If the cancelation was done by the user or NaN we should not tell the Earlycanceler object
             if candidate_result.intermediate_results is None:
                 raise ValueError(
-                    "An EarlyCanceller was passed but the objective function is not a generator"
+                    "An Earlycanceler was passed but the objective function is not a generator"
                 )
-            self._run_context.canceller.append(candidate_result.intermediate_results)
+            self._run_context.canceler.append(candidate_result.intermediate_results)
 
-        if candidate_result.was_cancelled:
+        if candidate_result.was_canceled:
             param_info.is_canceled = True
             for c in self._run_context.callbacks:
-                c.on_evaluate_cancelled(candidate, param_info)
+                c.on_evaluate_canceled(candidate, param_info)
             return
 
         for c in self._run_context.callbacks:
@@ -441,7 +441,7 @@ class Search:
         seeding_steps: Optional[int] = None,
         seeding_timeout: Union[int, float, str, None] = None,
         seeding_ratio: Optional[float] = 0.3,
-        canceller=None,
+        canceler=None,
         n_jobs=1,
         quiet=False,
         ignore_nans=False,
@@ -481,7 +481,7 @@ class Search:
 
         self._run_context = RunContext(
             direction,
-            canceller,
+            canceler,
             ignore_nans,
             schedule,
             callbacks,
@@ -497,7 +497,7 @@ class Search:
             "seeding_timeout": seeding_timeout,
             "seeding_ratio": seeding_ratio,
             "n_jobs": n_jobs,
-            "use_canceller": canceller is not None,
+            "use_canceler": canceler is not None,
             "ignore_nans": ignore_nans,
             "start_temperature": start_temperature,
             "end_temperature": end_temperature,

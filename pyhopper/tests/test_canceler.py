@@ -18,7 +18,7 @@ import time
 import pytest
 
 import pyhopper
-import pyhopper.cancellers
+import pyhopper.cancelers
 
 
 def of_inc(param):
@@ -63,14 +63,14 @@ def test_simple1():
 
     r1 = search.run(of, direction="max", max_steps=10)
     r1 = search.run(
-        of, direction="max", max_steps=100, canceller=pyhopper.cancellers.TopK(5)
+        of, direction="max", max_steps=100, canceler=pyhopper.cancelers.TopKCanceler(5)
     )
     r1 = search.run(
         of,
         direction="max",
         max_steps=200,
         n_jobs=5,
-        canceller=pyhopper.cancellers.TopK(5),
+        canceler=pyhopper.cancelers.TopKCanceler(5),
     )
 
 
@@ -88,17 +88,23 @@ def test_simple2():
         search = pyhopper.Search({"lr": pyhopper.float(-1)})
     r1 = search.run(of, direction="max", max_steps=10)
     r1 = search.run(
-        of, direction="max", max_steps=100, canceller=pyhopper.cancellers.Quantile(50)
+        of,
+        direction="max",
+        max_steps=100,
+        canceler=pyhopper.cancelers.QuantileCanceler(50),
     )
     r1 = search.run(
         of,
         direction="max",
         max_steps=100,
         n_jobs=5,
-        canceller=pyhopper.cancellers.Quantile(90),
+        canceler=pyhopper.cancelers.QuantileCanceler(90),
     )
     r1 = search.run(
-        of, direction="max", max_steps=100, canceller=pyhopper.cancellers.Quantile(0.5)
+        of,
+        direction="max",
+        max_steps=100,
+        canceler=pyhopper.cancelers.QuantileCanceler(0.5),
     )
 
 
@@ -157,7 +163,7 @@ def test_nan():
             direction="max",
             ignore_nans=True,
             max_steps=100,
-            canceller=pyhopper.cancellers.Quantile(0.5),
+            canceler=pyhopper.cancelers.QuantileCanceler(0.5),
         )
     with pytest.raises(ValueError):
         of_counter = 0
@@ -193,7 +199,7 @@ def test_nan_simple():
 
 
 def test_topk():
-    canceller = pyhopper.cancellers.TopK(3)
+    canceller = pyhopper.cancelers.TopKCanceler(3)
     canceller.direction = "max"
 
     assert canceller.should_cancel([0, 0, 0]) == False
@@ -237,7 +243,7 @@ def test_topk():
 
 
 def test_quantile2():
-    canceller = pyhopper.cancellers.Quantile(50)
+    canceller = pyhopper.cancelers.QuantileCanceler(50)
     canceller.direction = "min"
 
     assert canceller.should_cancel([0, 0, 0]) == False
@@ -265,7 +271,7 @@ def test_quantile2():
 
 
 def test_quantile():
-    canceller = pyhopper.cancellers.Quantile(50)
+    canceller = pyhopper.cancelers.QuantileCanceler(50)
     canceller.direction = "max"
 
     assert canceller.should_cancel([0, 0, 0]) == False

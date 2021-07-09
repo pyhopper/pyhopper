@@ -15,7 +15,7 @@
 
 from __future__ import absolute_import
 
-import pyhopper.cancellers as cancellers
+import pyhopper.cancelers as cancelers
 import pyhopper.callbacks as callbacks
 from pyhopper.parameters import Parameter as Parameter
 from pyhopper.parallel import CancelEvaluation as CancelEvaluation

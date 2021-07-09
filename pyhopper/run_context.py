@@ -235,7 +235,7 @@ class ProgBar(Callback):
     def on_evaluate_end(self, new_best: dict, f: float, info: ParamInfo):
         self.update()
 
-    def on_evaluate_cancelled(self, candidate: dict, info: ParamInfo):
+    def on_evaluate_canceled(self, candidate: dict, info: ParamInfo):
         self.update()
 
     def update(self):
@@ -259,7 +259,7 @@ class ProgBar(Callback):
     # 48% xXXXXXXXxxxxxxxxxxxxxxxxxxxxx | best: 0.42 (out of 3213) (00:38<1:00) [2.3min/param]
     def _str_time_per_eval(self):
         total_params_evaluated = (
-            self._run_history.total_amount + self._run_history.total_cancelled
+            self._run_history.total_amount + self._run_history.total_canceled
         )
         if total_params_evaluated == 0:
             return "..."
@@ -284,7 +284,7 @@ class ProgBar(Callback):
                 "Initial solution ",
                 self._run_history.best_per_type[CandidateType.INIT],
                 self._run_history.amount_per_type[CandidateType.INIT],
-                self._run_history.cancelled_per_type[CandidateType.INIT],
+                self._run_history.canceled_per_type[CandidateType.INIT],
                 self._run_history.runtime_per_type[CandidateType.INIT],
             )
         ]
@@ -294,7 +294,7 @@ class ProgBar(Callback):
                     "Manually added ",
                     self._run_history.best_per_type[CandidateType.MANUALLY_ADDED],
                     self._run_history.amount_per_type[CandidateType.MANUALLY_ADDED],
-                    self._run_history.cancelled_per_type[CandidateType.MANUALLY_ADDED],
+                    self._run_history.canceled_per_type[CandidateType.MANUALLY_ADDED],
                     self._run_history.runtime_per_type[CandidateType.MANUALLY_ADDED],
                 )
             )
@@ -304,7 +304,7 @@ class ProgBar(Callback):
                     "Random seeding",
                     self._run_history.best_per_type[CandidateType.RANDOM_SEEDING],
                     self._run_history.amount_per_type[CandidateType.RANDOM_SEEDING],
-                    self._run_history.cancelled_per_type[CandidateType.RANDOM_SEEDING],
+                    self._run_history.canceled_per_type[CandidateType.RANDOM_SEEDING],
                     self._run_history.runtime_per_type[CandidateType.RANDOM_SEEDING],
                 )
             )
@@ -314,7 +314,7 @@ class ProgBar(Callback):
                     "Local sampling",
                     self._run_history.best_per_type[CandidateType.LOCAL_SAMPLING],
                     self._run_history.amount_per_type[CandidateType.LOCAL_SAMPLING],
-                    self._run_history.cancelled_per_type[CandidateType.LOCAL_SAMPLING],
+                    self._run_history.canceled_per_type[CandidateType.LOCAL_SAMPLING],
                     self._run_history.runtime_per_type[CandidateType.LOCAL_SAMPLING],
                 )
             )
@@ -323,27 +323,27 @@ class ProgBar(Callback):
                 "Total",
                 self._run_history.best_f,
                 self._run_history.total_amount,
-                self._run_history.total_cancelled,
-                self._run_history.total_runtime,
+                self._run_history.total_canceled,
+                self._schedule.current_runtime,
             )
         )
         text_list = []
-        for text, f, steps, cancelled, elapsed in text_value_quadtuple:
+        for text, f, steps, canceled, elapsed in text_value_quadtuple:
             value = "x" if f is None else f"{f:0.3g}"
             text_list.append(
                 [
                     text,
                     value,
                     steps_to_pretty_str(steps),
-                    steps_to_pretty_str(cancelled),
+                    steps_to_pretty_str(canceled),
                     time_to_pretty_str(elapsed),
                 ]
             )
-        text_list.insert(0, ["Mode", "Best f", "Steps", "Cancelled", "Time"])
-        text_list.insert(1, ["-----------", "---", "---", "---", "---"])
-        text_list.insert(-1, ["-----------", "---", "---", "---", "---"])
-        if self._run_history.total_cancelled == 0:
-            # No candidate was cancelled so let's not show this column
+        text_list.insert(0, ["Mode", "Best f", "Steps", "Canceled", "Time"])
+        text_list.insert(1, ["----------------", "----", "----", "----", "----"])
+        text_list.insert(-1, ["----------------", "----", "----", "----", "----"])
+        if self._run_history.total_canceled == 0:
+            # No candidate was canceled so let's not show this column
             for t in text_list:
                 t.pop(3)
         num_items = len(text_list[0])
@@ -381,7 +381,7 @@ class RunHistory(Callback):
         self._direction = direction
         self.total_runtime = 0
         self.total_amount = 0
-        self.total_cancelled = 0
+        self.total_canceled = 0
         self.estimated_candidate_runtime = 0
         self.best_f = None
 
@@ -403,7 +403,7 @@ class RunHistory(Callback):
             CandidateType.RANDOM_SEEDING: 0,
             CandidateType.LOCAL_SAMPLING: 0,
         }
-        self.cancelled_per_type = {
+        self.canceled_per_type = {
             CandidateType.INIT: 0,
             CandidateType.MANUALLY_ADDED: 0,
             CandidateType.RANDOM_SEEDING: 0,
@@ -417,9 +417,9 @@ class RunHistory(Callback):
             or (self._direction == "min" and new < old)
         )
 
-    def on_evaluate_cancelled(self, candidate: dict, info: ParamInfo):
-        self.cancelled_per_type[info.type] += 1
-        self.total_cancelled += 1
+    def on_evaluate_canceled(self, candidate: dict, info: ParamInfo):
+        self.canceled_per_type[info.type] += 1
+        self.total_canceled += 1
 
     def on_search_start(self, search):
         self.best_f = search.best_f
@@ -446,7 +446,7 @@ class RunContext:
     def __init__(
         self,
         direction,
-        canceller,
+        canceler,
         ignore_nans,
         schedule,
         callbacks,
@@ -467,9 +467,9 @@ class RunContext:
             )
         direction = direction.lower()[0:3]  # only save first 3 chars
         self.direction = direction
-        self.canceller = canceller
-        if self.canceller is not None:
-            self.canceller.direction = self.direction
+        self.canceler = canceler
+        if self.canceler is not None:
+            self.canceler.direction = self.direction
         self.run_history = RunHistory(self.direction)
         self.ignore_nans = ignore_nans
         self.schedule = schedule

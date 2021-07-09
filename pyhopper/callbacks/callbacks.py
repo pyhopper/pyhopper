@@ -30,7 +30,7 @@ class Callback:
         pass
 
     def on_evaluate_cancelled(self, candidate: dict, info: ParamInfo):
-        """Called if `candidate` was cancelled (by an :meth:`pyhopper.cancellers.EarlyCanceller`)
+        """Called if `candidate` was cancelled (by an :meth:`pyhopper.cancelers.EarlyCanceller`)
 
         :param candidate: Parameter value of the cancelled candidate
         """
