@@ -9,6 +9,8 @@ Callbacks
 .. autoclass:: pyhopper.ParamInfo
    :members:
 
+.. autoclass:: History
+
 .. automodule:: pyhopper.callbacks.mlflow
 
 .. autoclass:: MLflowCallback

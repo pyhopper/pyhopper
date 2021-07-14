@@ -16,3 +16,4 @@
 from __future__ import absolute_import
 
 from pyhopper.callbacks.callbacks import Callback
+from pyhopper.callbacks.callbacks import History

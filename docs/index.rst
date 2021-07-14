@@ -29,9 +29,9 @@ and straightforward to use
             "opt": pyhopper.choice(["adam","rmsprop","sgd"]),
         }
     )
-    best_params = search.run(objective, "maximize", "1h 30min")
+    best_params = search.run(objective, "maximize", "1h 30min",n_jobs="per-gpu")
 
-The PyHopper's tuning algorithm is a powerful **Markov chain Monte Carlo** (MCMC) sampler that
+PyHopper is a **Markov chain Monte Carlo** (MCMC) sampler that
 
 - runs parallel across multiple CPUs and GPUs
 - natively supports NumPy array parameters with millions of dimensions
