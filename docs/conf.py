@@ -91,7 +91,7 @@ autodoc_typehints = "description"
 # further.  For a list of options available for each theme, see the
 # documentation.
 #
-html_logo = ".static/banner_64.png"
+html_logo = "img/banner_gray.png"
 # text_fonts = "FreightSans, Helvetica Neue, Helvetica, Arial, sans-serif"
 html_theme_options = {
     "sidebar_hide_name": True,

@@ -1,5 +1,5 @@
 Travelling Salesman Problem with PyHopper
------------------------------
+-------------------------------------------
 
 Pyhopper's flexibility allows us to implement heuristics for combinatorial optimization problems such as for the `Travelling Salesman Problem <https://en.wikipedia.org/wiki/Travelling_salesman_problem>`_ (TSP) with few lines of code.
 For instance, the `2-opt <https://en.wikipedia.org/wiki/2-opt>`_ heuristic is a well known search algorithm for the TSP:

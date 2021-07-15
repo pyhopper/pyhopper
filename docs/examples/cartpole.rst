@@ -1,5 +1,5 @@
 Gradient-free RL with Cartpole-v1
------------------------------
+-----------------------------------
 
 We can use pyhopper to even treat the weights of a neural network as hyperparameters.
 For instance

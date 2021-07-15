@@ -11,7 +11,7 @@ In this guide we discuss the most common advanced uses cases of PyHopper.
     numpy
     custom_sampling
     custom_types
-    cancellers
+    cancelers
     nans
     tensorboard
     mlflow
