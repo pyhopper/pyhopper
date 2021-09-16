@@ -12,7 +12,7 @@
 | [![Colab Tutorial](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1UPzhfCNCagh4OjI0VQyq87TpFbGoFBBl?usp=sharing)
 
 
-PyHopper is a hyperparameter optimizer, made specifically for high-dimensional problems arising in machine learning research.
+PyHopper is a hyperparameter optimizer, made specifically for high-dimensional problems arising in machine learning research and businesses.
 
 ```bash
 pip3 install -U pyhopper
