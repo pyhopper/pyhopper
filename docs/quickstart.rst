@@ -70,7 +70,7 @@ generates the samples
 .. code-block:: text
 
     > {'layers': 6, 'epochs': 30, 'num_units': 400, 'batch_size': 128}
-    > {'layers': 5, 'epochs': 31, 'num_units': 400, 'batch_size': 32}
+    > {'layers': 8, 'epochs': 31, 'num_units': 400, 'batch_size': 32}
     > {'layers': 4, 'epochs': 21, 'num_units': 500, 'batch_size': 32}
     > {'layers': 3, 'epochs': 21, 'num_units': 400, 'batch_size': 64}
     > {'layers': 5, 'epochs': 24, 'num_units': 400, 'batch_size': 32}
@@ -155,7 +155,7 @@ Running PyHopper
 -----------------------------
 
 Once we have defined the search space, we can schedule the search using the :meth:`pyhopper.Search.run` method.
-The method requires three argument: The objective function, the direction of the search (minimize or maximize), and runtime of the search.
+The method requires three argument: The objective function, the direction of the search (minimize or maximize), and the runtime of the search.
 For specifying the runtime, we can provide a string that is parsed by :meth:`pyhopper.parse_timeout` or simply an integer/float with the runtime in seconds.
 
 .. code-block:: python
@@ -199,19 +199,20 @@ Consequently, we can write standard PyTorch and TensorFlow code in the objective
 
 .. code-block:: python
 
-   n_jobs = 1           # No parallel workers
-   n_jobs = 4           # 4 parallel workers
-   n_jobs = "per-gpu"   # A worker for each GPU device
-   n_jobs = -1          # A worker for each CPU core
+   n_jobs = 1            # No parallel workers
+   n_jobs = 4            # 4 parallel workers
+   n_jobs = "per-gpu"    # A worker for each GPU device
+   n_jobs = "2x per-gpu" # 2 workers for each GPU device
+   n_jobs = -1           # A worker for each CPU core
 
 
 --------------------------------
 Dealing with a noisy objective
 --------------------------------
 
-Training a neural network is an inherently stochastic process. Randomness from the weight initialization has a strong influence in the final accuracy.
+Training a neural network is an inherently stochastic process. Randomness from the weight initialization has a strong influence on the final accuracy.
 In the context of a hyperparameter search, it may happen that a non-optimal parameter candidate achieves a high accuracy by simply having *luck* with the initial weights used for its evaluation.
-To tell spurious and genuine high accuracies apart we have to evaluate each parameter candidate several times and use the average accuracy as our objective metric.
+To tell spurious and genuine high accuracy apart, we have to evaluate each parameter candidate several times and use the average accuracy as our objective metric.
 For exactly this reason, PyHopper provides the :meth:`pyhopper.wrap_n_times` function that wraps an arbitrary function into its mean over n evaluations.
 
 .. code-block:: python

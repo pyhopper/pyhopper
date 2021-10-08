@@ -10,11 +10,14 @@ Callbacks
    :members:
 
 .. autoclass:: History
+   :members:
 
 .. automodule:: pyhopper.callbacks.mlflow
 
 .. autoclass:: MLflowCallback
+   :members:
 
 .. automodule:: pyhopper.callbacks.wandb
 
 .. autoclass:: WandbCallback
+   :members:

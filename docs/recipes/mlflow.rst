@@ -1,4 +1,4 @@
-MLflow and Weights & Biases integration
+Tracking with MLflow and Weights & Biases
 ----------------------------------------------------------
 
 Hyperparameter experiments can be integrated with the tracking and visualization interface of `MLflow <https://mlflow.org/>`_ and `Weights & Biases <https://wandb.ai/>`_ via PyHopper's callback API.

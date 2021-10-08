@@ -31,11 +31,11 @@ and straightforward to use
     )
     best_params = search.run(objective, "maximize", "1h 30min",n_jobs="per-gpu")
 
-PyHopper is a **Markov chain Monte Carlo** (MCMC) sampler that
+PyHopper is a **scheduled Markov chain Monte Carlo** (sMCMC) sampler that
 
 - runs parallel across multiple CPUs and GPUs
 - natively supports NumPy array parameters with millions of dimensions
-- is highly customizable (e.g. you can directly tune entire :code:`torch.Tensor` hyperparameters)
+- automatically focuses its search space based on the remaining runtime
 
 User’s Guide
 --------------

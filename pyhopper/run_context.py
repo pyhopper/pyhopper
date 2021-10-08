@@ -238,8 +238,10 @@ class ProgBar(Callback):
     def on_evaluate_canceled(self, candidate: dict, info: ParamInfo):
         self.update()
 
-    def update(self):
-        self._tqdm.n = self._schedule.current_units
+    def update(self, close=False):
+        self._tqdm.n = (
+            self._schedule.total_units if close else self._schedule.current_units
+        )
         self._tqdm.set_postfix_str(self._str_time_per_eval(), refresh=False)
         if self._run_history.best_f is not None:
             self._tqdm.set_description_str(
@@ -247,7 +249,7 @@ class ProgBar(Callback):
                 refresh=False,
             )
         # TODO: Maybe there is some more elegant way implemented in tqdm
-        if time.time() - self._last_refreshed > 0.2:
+        if close or time.time() - self._last_refreshed > 0.2:
             self._last_refreshed = time.time()
             self._tqdm.refresh()
 
@@ -264,17 +266,15 @@ class ProgBar(Callback):
         if total_params_evaluated == 0:
             return "..."
         seconds_per_param = self._schedule.current_runtime / total_params_evaluated
-        if seconds_per_param <= 1:
-            return f"{1/seconds_per_param:0.1f} params/s"
-        elif seconds_per_param > 60 * 60:
-            return f"{seconds_per_param/(60*60):0.1f} h/param"
+        if seconds_per_param > 60 * 60:
+            return f"{60*60/seconds_per_param:0.1f} param/h"
         elif seconds_per_param > 60:
-            return f"{seconds_per_param/60:0.1f} min/param"
+            return f"{60/seconds_per_param:0.1f} param/min"
         else:
-            return f"{seconds_per_param:0.1f} s/param"
+            return f"{1/seconds_per_param:0.1f} param/s"
 
     def on_search_end(self):
-        self.update()
+        self.update(True)
         self._tqdm.close()
         self._pretty_print_results()
 

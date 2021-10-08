@@ -1,4 +1,4 @@
-Visualizing the sampled hyperparameters
+Tracking sampled hyperparameters
 ----------------------------------------------------------
 
 In some cases we are not only interested in the best hyperparameter. Instead we also want to visualize and analyze which hyperparamter ranges result in a high objective value.
