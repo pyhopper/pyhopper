@@ -43,7 +43,7 @@ Its most important features are
 
 - 1-line multi GPU parallelization
 - native NumPy array hyperparameter support
-- highly customizable (e.g. you can directly tune entire ```torch.Tensor``` hyperparameters)
+- automatically focuses its search space based on the remaining runtime
 
 Under its hood, PyHopper uses an efficient 2-stage Markov chain Monte Carlo (MCMC) optimization algorithm.
 
