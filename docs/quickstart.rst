@@ -39,6 +39,10 @@ outputs
     > {'my_const': 'cifar10', 'my_int': 438, 'my_float': 0.1960442887, 'my_choice': 'sgd'}
     > {'my_const': 'cifar10', 'my_int': 156, 'my_float': 0.2719664365, 'my_choice': 'sgd'}
 
+.. info::
+
+    :code:`pyhopper.Search` either accepts a :code:`dict` or named arguments in the form of :code:`pyhopper.Search(my_int=pyhopper.int(100,500), my_const="cifar10")`
+
 .. note::
 
     Setting :code:`quiet=False` (which is default) prints a progress bar during the search and a short summary at the end of the search.

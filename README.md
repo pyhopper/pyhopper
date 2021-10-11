@@ -29,12 +29,10 @@ def my_objective(params: dict) -> float:
     return val_accuracy
 
 search = pyhopper.Search(
-    {
-        "hidden_size": pyhopper.int(100,500),
-        "dropout_rate": pyhopper.float(0,0.4),
-        "matrix": pyhopper.float(-1,1,shape=(20,20)),
-        "opt": pyhopper.choice(["adam","rmsprop","sgd"]),
-    }
+    hidden_size  = pyhopper.int(100,500),
+    dropout_rate = pyhopper.float(0,0.4),
+    matrix       = pyhopper.float(-1,1,shape=(20,20)),
+    opt          = pyhopper.choice(["adam","rmsprop","sgd"]),
 )
 best_params = search.run(my_objective, "maximize", "1h 30min", n_jobs="per-gpu")
 ```

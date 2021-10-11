@@ -23,12 +23,11 @@ and straightforward to use
         return val_accuracy
 
     search = pyhopper.Search(
-        {
-            "hidden_size": pyhopper.int(100,500),
-            "dropout_rate": pyhopper.float(0,0.4),
-            "opt": pyhopper.choice(["adam","rmsprop","sgd"]),
-        }
+        hidden_size  = pyhopper.int(100,500),
+        dropout_rate = pyhopper.float(0,0.4),
+        opt          = pyhopper.choice(["adam","rmsprop","sgd"]),
     )
+
     best_params = search.run(objective, "maximize", "1h 30min",n_jobs="per-gpu")
 
 PyHopper is a **scheduled Markov chain Monte Carlo** (sMCMC) sampler that
