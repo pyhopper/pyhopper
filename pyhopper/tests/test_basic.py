@@ -53,6 +53,56 @@ def ofall(param, x=None):
     return -np.square(param["lr"] - 3e-4) * 10
 
 
+def of_kwargs(param):
+    assert "a" in param.keys()
+    assert "b" in param.keys()
+    assert "c" in param.keys()
+    return param["a"] * 0.5
+
+
+def test_kwargs():
+    search = pyhopper.Search(
+        a=pyhopper.int(0, 10),
+        b=pyhopper.float(0, 10),
+        c="hello",
+    )
+
+    r1 = search.run(of_kwargs, direction="max", max_steps=10)
+    assert "a" in r1.keys()
+    assert "b" in r1.keys()
+    assert "c" in r1.keys()
+
+
+def test_merge():
+    search = pyhopper.Search(
+        {"a": pyhopper.int(0, 10)},
+        {"b": pyhopper.int(0, 10)},
+        c="hello",
+    )
+
+    r1 = search.run(of_kwargs, direction="max", max_steps=10)
+    assert "a" in r1.keys()
+    assert "b" in r1.keys()
+    assert "c" in r1.keys()
+
+
+def test_merge_raise():
+    with pytest.raises(ValueError):
+        pyhopper.merge_dicts({"a": pyhopper.int(0, 10)}, {"a": pyhopper.float(0, 10)})
+
+    with pytest.raises(ValueError):
+        search = pyhopper.Search(
+            {"a": pyhopper.int(0, 10)},
+            {"a": pyhopper.float(0, 10)},
+            c="hello",
+        )
+    with pytest.raises(ValueError):
+        search = pyhopper.Search(
+            {"a": pyhopper.int(0, 10)},
+            a="hello",
+        )
+
+
 def test_simple1():
     search = pyhopper.Search(
         {

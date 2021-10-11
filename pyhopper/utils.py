@@ -39,6 +39,24 @@ class ParamInfo:
         self.sampled_at = sampled_at
 
 
+def merge_dicts(*args):
+    """Merges multiple dictionaries (``dict``s) into a single dictionary.
+    Raises ValueError if a key is contained in two dicts with different values.
+
+    :param args: Sequence of ``dict``s that
+    :return: The merged ``dict``
+    """
+    new_dict = {}
+    for d in args:
+        for k, v in d.items():
+            if k in new_dict.keys() and new_dict[k] != v:
+                raise ValueError(
+                    f"Could not merge dicts! The key '{k}' is contained in multiple dictionaries with different values"
+                )
+            new_dict[k] = v
+    return new_dict
+
+
 class CandidateType(Enum):
     INIT = 0
     MANUALLY_ADDED = 1

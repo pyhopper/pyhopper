@@ -28,3 +28,4 @@ from pyhopper.utils import NTimesEvaluator as wrap_n_times
 from pyhopper.utils import parse_timeout as parse_timeout
 from pyhopper.utils import ParamInfo
 from pyhopper.utils import CandidateType
+from pyhopper.utils import merge_dicts

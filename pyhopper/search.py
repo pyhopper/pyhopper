@@ -24,7 +24,7 @@ from .parameters import (
 )
 from .parallel import execute, TaskManager, SignalListener
 import numpy as np
-from typing import Union, Optional, Any, Tuple
+from typing import Union, Optional, Any, Tuple, Sequence
 from types import FunctionType
 from enum import Enum
 import time
@@ -38,6 +38,7 @@ from .utils import (
     steps_to_pretty_str,
     ParamInfo,
     CandidateType,
+    merge_dicts,
 )
 
 
@@ -185,14 +186,19 @@ def register_float(
 
 
 class Search:
-    def __init__(
-        self,
-        parameters: dict,
-    ):
+    def __init__(self, *args: Union[dict, Sequence[dict]], **kwargs):
         """
         Creates a new search object
-        :param parameters: dict defining the search space
+
+        :param args: dict defining the search space. If multiple dicts are provided the dicts will be merged.
+        param kwargs: key-value pairs defining the search space. Will be merged with the numbered arguments if some are provided
         """
+        parameters = {}
+        if len(args) > 0:
+            parameters = merge_dicts(*args)
+
+        parameters = merge_dicts(parameters, kwargs)
+
         self._params = {}
         self._best_solution = {}
         self._free_params = {}
