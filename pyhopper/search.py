@@ -317,6 +317,11 @@ class Search:
                 self._best_solution[k] = v.sample()
 
     def sample_solution(self):
+        if len(self._free_params) == 0:
+            raise ValueError(
+                "There are not parameters to optimize (search space does not contain any `pyhopper.Parameter` instance)"
+            )
+
         candidate = {}
         for (k, v) in self._params.items():
             if isinstance(v, Parameter):
@@ -326,6 +331,11 @@ class Search:
         return candidate
 
     def mutate_from_best(self, temperature):
+        if len(self._free_params) == 0:
+            raise ValueError(
+                "There are not parameters to optimize (search space does not contain any `pyhopper.Parameter` instance)"
+            )
+
         temperature = np.clip(temperature, 0, 1)
         candidate = {}
         for (k, v) in self._params.items():
@@ -443,7 +453,8 @@ class Search:
         objective_function,
         direction: str = "maximize",
         timeout: Union[int, float, str, None] = None,
-        max_steps: Optional[int] = None,
+        max_steps: Union[int, str, None] = None,
+        endless_mode: bool = False,
         seeding_steps: Optional[int] = None,
         seeding_timeout: Union[int, float, str, None] = None,
         seeding_ratio: Optional[float] = 0.3,
@@ -473,6 +484,7 @@ class Search:
         schedule = ScheduledRun(
             max_steps,
             timeout,
+            endless_mode,
             seeding_steps=seeding_steps,
             seeding_timeout=seeding_timeout,
             seeding_ratio=seeding_ratio,
@@ -536,14 +548,7 @@ class Search:
             if len(self._manually_queued_candidates) > 0:
                 candidate = self._manually_queued_candidates.pop(-1)
                 candidate_type = CandidateType.MANUALLY_ADDED
-            elif (
-                schedule.is_mixed_endless
-                and np.random.default_rng().random() < schedule.endless_seeding_ratio
-            ) or (
-                not schedule.is_seeding_timeout(
-                    self._run_context.run_history.estimated_candidate_runtime
-                )
-            ):
+            elif schedule.is_in_seeding_mode():
                 candidate = self.sample_solution()
                 candidate_type = CandidateType.RANDOM_SEEDING
             else:
@@ -579,6 +584,10 @@ class Search:
         self._run_context = None
 
         return self._best_solution
+
+    @property
+    def manual_queue_count(self):
+        return len(self._manually_queued_candidates)
 
     @property
     def current_run_config(self):

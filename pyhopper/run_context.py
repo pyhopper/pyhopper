@@ -16,17 +16,27 @@ class ScheduledRun:
         self,
         max_steps=None,
         timeout=None,
+        endless_mode=False,
         seeding_steps=None,
         seeding_timeout=None,
         seeding_ratio=None,
         start_temperature=1.0,
         end_temperature=0.0,
     ):
+        if max_steps is None and timeout is None and endless_mode is False:
+            raise ValueError(
+                "Must specify either 'max_steps', 'timeout', or 'endless_mode'"
+            )
+        if (max_steps is not None or timeout is not None) and endless_mode:
+            raise ValueError(
+                "Cannot specify both 'endless_mode' and 'max_steps'/'timeout' at the same time.'"
+            )
         if max_steps is not None and timeout is not None:
             raise ValueError(
                 "Cannot specify both 'max_steps' and 'timeout' at the same time, one of the two must be None"
             )
         self._step_limit = max_steps
+        self._endless_mode = endless_mode
         self._timeout = None
         if timeout is not None:
             self._timeout = parse_timeout(timeout)
@@ -87,31 +97,38 @@ class ScheduledRun:
         return time.time() - self._start_time
 
     @property
+    def is_steps_mode(self):
+        return self._timeout is None
+
+    @property
     def is_timeout_mode(self):
         return self._timeout is not None
 
     @property
-    def is_mixed_endless(self):
+    def is_endless_mode(self):
         """
-        True if in endless seeding+sampling mode
+        True if in endless (sampling) mode
         """
-        return (
-            self._timeout is None
-            and self._step_limit is None
-            and self._seeding_timeout is None
-            and self._seeding_max_steps is None
-        )
+        return self._endless_mode
+
+    def is_in_seeding_mode(self):
+
+        if self.is_endless_mode:
+            return np.random.default_rng().random() < self.endless_seeding_ratio
+
+        if self._seeding_max_steps is not None:
+            # step-scheduled mode
+            return self._step >= self._seeding_max_steps
+        elif self._seeding_timeout is not None:
+            # time-scheduled mode
+            return time.time() - self._start_time >= self._seeding_timeout
+        else:
+            raise ValueError("This code path should not be executed!")
+            return False
 
     @property
     def endless_seeding_ratio(self):
         return self._seeding_ratio if self._seeding_ratio is not None else 0.2
-
-    @property
-    def is_endless(self):
-        """
-        True if in endless (sampling) mode
-        """
-        return self._timeout is None and self._step_limit is None
 
     @property
     def total_units(self):
@@ -137,16 +154,6 @@ class ScheduledRun:
     def current_runtime(self):
         return time.time() - self._start_time
 
-    @property
-    def is_disabled(self):
-        if self._step_limit is not None:
-            # step-scheduled mode
-            return self._step_limit <= 0
-        elif self._timeout is not None:
-            # time-scheduled mode
-            return self._timeout <= 0
-        return False
-
     def is_timeout(self, estimated_runtime=0):
         if self._sigterm_received > 0:
             return True
@@ -156,21 +163,6 @@ class ScheduledRun:
         elif self._timeout is not None:
             # time-scheduled mode
             return time.time() - self._start_time + estimated_runtime >= self._timeout
-        else:
-            return False
-
-    def is_seeding_timeout(self, estimated_runtime=0):
-        if self._sigterm_received > 0:
-            return True
-        if self._seeding_max_steps is not None:
-            # step-scheduled mode
-            return self._step >= self._seeding_max_steps
-        elif self._seeding_timeout is not None:
-            # time-scheduled mode
-            return (
-                time.time() - self._start_time + estimated_runtime
-                >= self._seeding_timeout
-            )
         else:
             return False
 
