@@ -113,15 +113,14 @@ class ScheduledRun:
 
     def is_in_seeding_mode(self):
 
-        if self.is_endless_mode:
-            return np.random.default_rng().random() < self.endless_seeding_ratio
-
         if self._seeding_max_steps is not None:
             # step-scheduled mode
             return self._step >= self._seeding_max_steps
         elif self._seeding_timeout is not None:
             # time-scheduled mode
             return time.time() - self._start_time >= self._seeding_timeout
+        elif self.is_endless_mode:
+            return np.random.default_rng().random() < self.endless_seeding_ratio
         else:
             raise ValueError("This code path should not be executed!")
             return False
@@ -149,10 +148,6 @@ class ScheduledRun:
             # time-scheduled mode
             return np.minimum(time.time() - self._start_time, self._timeout)
         return 0
-
-    @property
-    def current_runtime(self):
-        return time.time() - self._start_time
 
     def is_timeout(self, estimated_runtime=0):
         if self._sigterm_received > 0:
@@ -184,7 +179,7 @@ class ScheduledRun:
 
     @property
     def temperature(self):
-        if self.is_endless:
+        if self.is_endless_mode:
             # In endless mode we randomly sample the progress
             progress = np.random.default_rng().random()
         else:
@@ -203,7 +198,7 @@ class ProgBar(Callback):
         self._schedule = schedule
         self._run_history = run_history
         self.disabled = disable
-        if self._schedule.is_endless:
+        if self._schedule.is_endless_mode:
             bar_format = (
                 "Endless (stop with CTRL+C) {bar}| [{elapsed}<{remaining}{postfix}]",
             )
@@ -271,15 +266,17 @@ class ProgBar(Callback):
         self._pretty_print_results()
 
     def _pretty_print_results(self):
-        text_value_quadtuple = [
-            (
-                "Initial solution ",
-                self._run_history.best_per_type[CandidateType.INIT],
-                self._run_history.amount_per_type[CandidateType.INIT],
-                self._run_history.canceled_per_type[CandidateType.INIT],
-                self._run_history.runtime_per_type[CandidateType.INIT],
+        text_value_quadtuple = []
+        if self._run_history.amount_per_type[CandidateType.INIT] > 0:
+            text_value_quadtuple.append(
+                (
+                    "Initial solution ",
+                    self._run_history.best_per_type[CandidateType.INIT],
+                    self._run_history.amount_per_type[CandidateType.INIT],
+                    self._run_history.canceled_per_type[CandidateType.INIT],
+                    self._run_history.runtime_per_type[CandidateType.INIT],
+                )
             )
-        ]
         if self._run_history.amount_per_type[CandidateType.MANUALLY_ADDED] > 0:
             text_value_quadtuple.append(
                 (

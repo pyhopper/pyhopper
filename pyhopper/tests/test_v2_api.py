@@ -25,8 +25,8 @@ def of(param):
     return -np.square(param["lr"] - 3e-4) * 10
 
 
-def test_kwargs():
-    search = (pyhopper.Search(),)
+def test_manual():
+    search = pyhopper.Search(lr=None)
 
     search += {"lr": 0.1}
     search += {"lr": 0.2}
@@ -37,4 +37,4 @@ def test_kwargs():
 
 
 if __name__ == "__main__":
-    test_simple1()
+    test_manual()

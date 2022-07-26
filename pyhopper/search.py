@@ -286,7 +286,8 @@ class Search:
         for k in candidate.keys():
             if k not in self._params:
                 raise ValueError(
-                    f"Candidate for '{k}' was provided by the candidate solution but has not been registered."
+                    f"Parameter guess for '{k}' was provided but has not been registered in 'Search.__init__'. You can "
+                    f"register '{k}' as a dummy parameter by passing '...= Search({k}=None, ...)'."
                 )
         self._manually_queued_candidates.append(added_candidate)
 
@@ -476,11 +477,6 @@ class Search:
         if kwargs is None:
             kwargs = {}
 
-        if len(self._free_params) == 0:
-            raise ValueError(
-                "There are not parameters to optimize (search space does not contain any `pyhopper.Parameter` instance)"
-            )
-
         schedule = ScheduledRun(
             max_steps,
             timeout,
@@ -511,6 +507,7 @@ class Search:
             "direction": direction,
             "timeout": timeout,
             "max_steps": max_steps,
+            "endless_mode": endless_mode,
             "seeding_steps": seeding_steps,
             "seeding_timeout": seeding_timeout,
             "seeding_ratio": seeding_ratio,
@@ -524,12 +521,12 @@ class Search:
         self._signal_listener.register_signal(
             schedule.signal_gradually_quit, self._force_termination
         )
-        self._fill_missing_init_values()
         for c in self._run_context.callbacks:
             c.on_search_start(self)
 
-        if self._best_f is None:
+        if self._best_f is None and self.manual_queue_count == 0:
             # Evaluate initial guess, this gives the user some estimate of how much PyHopper could tune the parameters
+            self._fill_missing_init_values()
             self._submit_candidate(
                 objective_function,
                 CandidateType.INIT,
@@ -544,8 +541,12 @@ class Search:
         while not schedule.is_timeout(
             self._run_context.run_history.estimated_candidate_runtime
         ):
+            if len(self._free_params) == 0 and self.manual_queue_count == 0:
+                raise ValueError(
+                    "There are not parameters to optimize (search space does not contain any `pyhopper.Parameter` instance)"
+                )
             # If estimated runtime exceeds timeout let's already terminate
-            if len(self._manually_queued_candidates) > 0:
+            if self.manual_queue_count > 0:
                 candidate = self._manually_queued_candidates.pop(-1)
                 candidate_type = CandidateType.MANUALLY_ADDED
             elif schedule.is_in_seeding_mode():
