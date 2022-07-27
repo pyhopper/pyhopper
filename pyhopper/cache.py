@@ -53,3 +53,9 @@ class EvaluationCache:
 
     def clear(self):
         self._cache = {}
+
+    def state_dict(self):
+        return {"cache": self._cache}
+
+    def load_state_dict(self, state):
+        self._cache = state["cache"]

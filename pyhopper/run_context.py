@@ -192,6 +192,13 @@ class ScheduledRun:
             + (self._end_temperature - self._start_temperature) * progress
         )
 
+    def state_dict(self):
+        return {"step": self.step, "runtime": self.current_runtime}
+
+    def load_state_dict(self, state):
+        self._step = state["step"]
+        self._start_time = time.time() - state["runtime"]
+
 
 class ProgBar(Callback):
     def __init__(self, schedule, run_history, disable):
@@ -430,6 +437,22 @@ class RunHistory(Callback):
             ema * self.estimated_candidate_runtime + (1 - ema) * runtime
         )
 
+    def state_dict(self):
+        return {
+            "total_runtime": self.total_runtime,
+            "total_amount": self.total_amount,
+            "total_canceled": self.total_canceled,
+            "estimated_candidate_runtime": self.estimated_candidate_runtime,
+            "best_f": self.best_f,
+        }
+
+    def load_state_dict(self, state):
+        self.total_runtime = state["total_runtime"]
+        self.total_amount = state["total_amount"]
+        self.total_canceled = state["total_canceled"]
+        self.estimated_candidate_runtime = state["estimated_candidate_runtime"]
+        self.best_f = state["best_f"]
+
 
 class RunContext:
     def __init__(
@@ -478,3 +501,16 @@ class RunContext:
             # Convert single callback object to a list of size 1
             callbacks = [callbacks]
         return callbacks
+
+    def state_dict(self):
+        return {
+            "run_history": self.run_history.state_dict(),
+            "schedule": self.schedule.state_dict(),
+            "canceler": None if self.canceler is None else self.canceler.state_dict(),
+        }
+
+    def load_state_dict(self, state):
+        self.run_history.load_state_dict(state["run_history"])
+        self.schedule.load_state_dict(state["schedule"])
+        if self.canceler is not None:
+            self.canceler.load_state_dict(state["canceler"])
