@@ -48,6 +48,18 @@ class Callback:
         """Called at the end of the search process"""
         pass
 
+    def state_dict(self):
+        """Called when a checkpoint of the hyperparameter search is created to backup the state
+        :return A dict containing the internal (runtime) state of the callback. None if the callback has no state"""
+        return None
+
+    def load_state_dict(self, state_dict):
+        """
+        Restores the internal state of the callback.
+        :param state_dict: A dict created by the self.state_dict method
+        """
+        pass
+
 
 class History(Callback):
     """
@@ -69,6 +81,35 @@ class History(Callback):
         self._cancelled_runtime = []
         self._start_time = time.time()
         self._current_best_f = None
+
+    def state_dict(self):
+        return {
+            "log_candidate": self._log_candidate,
+            "log_types": self._log_types,
+            "log_f": self._log_f,
+            "log_finished_at": self._log_finished_at,
+            "log_best_f": self._log_best_f,
+            "log_runtime": self._log_runtime,
+            "cancelled_types": self._cancelled_types,
+            "cancelled_candidates": self._cancelled_candidates,
+            "cancelled_finished_at": self._cancelled_finished_at,
+            "cancelled_runtime": self._cancelled_runtime,
+            "start_time": self._start_time,
+            "current_best_f": self._current_best_f,
+        }
+
+    def load_state_dict(self, state_dict):
+        self._log_candidate = state_dict["log_candidate"]
+        self._log_types = state_dict["log_types"]
+        self._log_f = state_dict["log_f"]
+        self._log_finished_at = state_dict["log_finished_at"]
+        self._log_runtime = state_dict["log_runtime"]
+        self._cancelled_types = state_dict["cancelled_types"]
+        self._cancelled_candidates = state_dict["cancelled_candidates"]
+        self._cancelled_finished_at = state_dict["cancelled_finished_at"]
+        self._cancelled_runtime = state_dict["cancelled_runtime"]
+        self._start_time = state_dict["start_time"]
+        self._current_best_f = state_dict["current_best_f"]
 
     def on_search_start(self, search: "pyhopper.Search"):
         self._current_best_f = search.best_f

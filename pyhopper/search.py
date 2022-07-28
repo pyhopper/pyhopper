@@ -11,7 +11,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import os.path
 
+from . import serializer
 from .cache import EvaluationCache
 from .parameters import (
     FloatParameter,
@@ -469,6 +471,7 @@ class Search:
         start_temperature: float = 1,
         end_temperature: float = 0,
         kwargs=None,
+        checkpoint_path=None,
     ):
         """
         :param direction: String defining if the objective function should be minimized or maximize
@@ -585,6 +588,34 @@ class Search:
         self._run_context = None
 
         return self._best_solution
+
+    def save(self, checkpoint_path):
+        state_dict = {}
+        state_dict["run_context"] = (
+            None if self._run_context is None else self._run_context.state_dict()
+        )
+        state_dict["cache"] = self._f_cache.state_dict()
+        state_dict["best_f"] = self._best_f
+        state_dict["best_solution"] = self._best_solution
+        if os.path.isdir(checkpoint_path):
+            for i in range(100000):
+                checkpoint_path = os.path.join(
+                    checkpoint_path, f"pyhopper_run_{i:05d}.ckpt"
+                )
+                if not os.path.isfile(checkpoint_path):
+                    break
+        serializer.store(checkpoint_path, state_dict)
+        return checkpoint_path
+
+    def load(self, checkpoint_path, restore_run_context=True):
+        state_dict = serializer.load(checkpoint_path)
+
+        if restore_run_context and state_dict["run_context"] is not None:
+            self._run_context.load_state_dict(state_dict["run_context"])
+
+        self._f_cache.load_state_dict(state_dict["cache"])
+        self._best_f = state_dict["best_f"]
+        self._best_solution = state_dict["best_solution"]
 
     @property
     def manual_queue_count(self):

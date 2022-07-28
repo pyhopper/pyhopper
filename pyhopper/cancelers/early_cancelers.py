@@ -42,6 +42,12 @@ class EarlyCanceler:
     def should_cancel(self, partial_results: list):
         raise NotImplementedError()
 
+    def state_dict(self):
+        return None
+
+    def load_state_dict(self, state_dict):
+        pass
+
 
 class QuantileCanceler(EarlyCanceler):
     def __init__(self, q, warmup=5):
@@ -88,6 +94,13 @@ class QuantileCanceler(EarlyCanceler):
         # Cancel if arrived partial result is worse than `q` quantile
         return not self.is_better_or_equal(partial_results[new_index], quantile)
 
+    def state_dict(self):
+        return {"n": self.n, "intermediates": self.intermediates}
+
+    def load_state_dict(self, state_dict):
+        self.n = state_dict["n"]
+        self.intermediates = state_dict["intermediates"]
+
 
 class TopKCanceler(EarlyCanceler):
     def __init__(self, k):
@@ -96,6 +109,18 @@ class TopKCanceler(EarlyCanceler):
         self.n = None
         self.top_k_intermediates = []
         self.top_k_of = []
+
+    def state_dict(self):
+        return {
+            "n": self.n,
+            "top_k_intermediates": self.top_k_intermediates,
+            "top_k_of": self.top_k_of,
+        }
+
+    def load_state_dict(self, state_dict):
+        self.n = state_dict["n"]
+        self.top_k_intermediates = state_dict["top_k_intermediates"]
+        self.top_k_of = state_dict["top_k_of"]
 
     def append(self, partial_results: list):
         if self.n is None:
