@@ -212,6 +212,7 @@ class Search:
         self._manually_queued_candidates = []
 
         self._signal_listener = SignalListener()
+        self._history = None
 
     def __iadd__(self, other):
         self.add(other)
@@ -472,6 +473,7 @@ class Search:
         end_temperature: float = 0,
         kwargs=None,
         checkpoint_path=None,
+        keep_history=True,
     ):
         """
         :param direction: String defining if the objective function should be minimized or maximize
