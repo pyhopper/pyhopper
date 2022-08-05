@@ -2,7 +2,7 @@ import pickle
 import os
 
 import pyhopper
-from pyhopper.utils import ParamInfo
+from pyhopper.utils import ParamInfo, convert_to_checkpoint_path
 import time
 
 
@@ -61,13 +61,41 @@ class Callback:
         pass
 
 
+class CheckpointCallback:
+    def __init__(self, checkpoint_path):
+        self._checkpoint_path = convert_to_checkpoint_path(checkpoint_path)
+        self._search_obj = None
+
+    def on_search_start(self, search: "pyhopper.Search"):
+        self._search_obj = search
+        if os.path.isfile(self._checkpoint_path):
+            self._search_obj.load(self._checkpoint_path)
+            if self._search_obj._run_context.pbar is not None:
+                self._search_obj._run_context.pbar.write(
+                    f"Restored search from checkpoint '{self._checkpoint_path}'"
+                )
+
+    def on_evaluate_end(self, candidate: dict, f: float, info: ParamInfo):
+        self._search_obj.save(self._checkpoint_path)
+
+    def on_evaluate_cancelled(self, candidate: dict, info: ParamInfo):
+        self._search_obj.save(self._checkpoint_path)
+
+    def on_new_best(self, new_best: dict, f: float, info: ParamInfo):
+        self._search_obj.save(self._checkpoint_path)
+
+    def on_search_end(self):
+        pass
+
+
 class History(Callback):
     """
     Public API for the history of the search. Can be used by the user for plotting and analyzing the search space.
     Persistent over several consecutive calls of ```run```
     """
 
-    def __init__(self):
+    def __init__(self, log_candidates=True):
+        self._log_candidate_enabled = log_candidates
         self._log_candidate = []
         self._log_types = []
         self._log_f = []
@@ -81,6 +109,7 @@ class History(Callback):
         self._cancelled_runtime = []
         self._start_time = time.time()
         self._current_best_f = None
+        self._enabled = True
 
     def state_dict(self):
         return {
@@ -119,26 +148,31 @@ class History(Callback):
         self._cancelled_runtime.append(runtime)
         self._cancelled_types.append(info.type)
         self._cancelled_finished_at.append(info.finished_at - self._start_time)
-        self._cancelled_candidates.append(candidate)
+
+        if self._log_candidate_enabled:
+            self._cancelled_candidates.append(candidate)
 
     def on_evaluate_end(self, candidate: dict, f: float, info: ParamInfo):
         runtime = info.finished_at - info.sampled_at
 
-        self._log_candidate.append(candidate)
         self._log_types.append(info.type)
         self._log_f.append(f)
         self._log_finished_at.append(info.finished_at - self._start_time)
         self._log_best_f.append(self._current_best_f)
         self._log_runtime.append(runtime)
 
+        if self._log_candidate_enabled:
+            self._log_candidate.append(candidate)
+
     def on_new_best(self, new_best: dict, f: float, info: ParamInfo):
         self._current_best_f = f
         self._log_best_f[-1] = f  # Overwrite retrospectively
 
-    def __getitem__(self, item):
-        return self._log_candidate[item]
-
     def get_marginal(self, item):
+        if not self._log_candidate_enabled:
+            raise ValueError(
+                "Did not store candidates as log_candidates=False was passed to __init__"
+            )
         if len(self._log_candidate) > 0:
             if item not in self._log_candidate[0].keys():
                 raise ValueError(
@@ -156,6 +190,12 @@ class History(Callback):
             self._cancelled_candidates[i][item]
             for i in range(len(self._cancelled_candidates))
         ]
+
+    def __getitem__(self, item):
+        if isinstance(item, int):
+            return self._log_candidate[item]
+        else:
+            return self.get_marginal(item)
 
     def __len__(self):
         return len(self._log_f)

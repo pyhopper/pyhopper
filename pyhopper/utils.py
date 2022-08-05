@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import os
 from enum import Enum
 from typing import Union
 import numpy as np
@@ -55,6 +56,26 @@ def merge_dicts(*args):
                 )
             new_dict[k] = v
     return new_dict
+
+
+def convert_to_list(list_or_obj):
+    if list_or_obj is None:
+        return []
+    if not isinstance(list_or_obj, list):
+        # Convert single callback object to a list of size 1
+        list_or_obj = [list_or_obj]
+    return list_or_obj
+
+
+def convert_to_checkpoint_path(checkpoint_path):
+    if os.path.isdir(checkpoint_path):
+        for i in range(100000):
+            checkpoint_path = os.path.join(
+                checkpoint_path, f"pyhopper_run_{i:05d}.ckpt"
+            )
+            if not os.path.isfile(checkpoint_path):
+                break
+    return checkpoint_path
 
 
 class CandidateType(Enum):

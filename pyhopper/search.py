@@ -15,6 +15,8 @@ import os.path
 
 from . import serializer
 from .cache import EvaluationCache
+from .callbacks import History
+from .callbacks.callbacks import CheckpointCallback
 from .parameters import (
     FloatParameter,
     IntParameter,
@@ -41,6 +43,8 @@ from .utils import (
     ParamInfo,
     CandidateType,
     merge_dicts,
+    convert_to_list,
+    convert_to_checkpoint_path,
 )
 
 
@@ -212,7 +216,7 @@ class Search:
         self._manually_queued_candidates = []
 
         self._signal_listener = SignalListener()
-        self._history = None
+        self._history = History()
 
     def __iadd__(self, other):
         self.add(other)
@@ -498,6 +502,12 @@ class Search:
             if task_executor.n_jobs == 1:
                 task_executor = None  # '1x per-gpu' on single GPU machines -> No need for multiprocess overhead
 
+        callbacks = convert_to_list(callbacks)
+        if keep_history:
+            callbacks.append(self._history)
+        if checkpoint_path is not None:
+            callbacks.append(CheckpointCallback(checkpoint_path))
+
         self._run_context = RunContext(
             direction,
             canceler,
@@ -598,14 +608,10 @@ class Search:
         )
         state_dict["cache"] = self._f_cache.state_dict()
         state_dict["best_f"] = self._best_f
+        state_dict["history"] = self._history.state_dict()
         state_dict["best_solution"] = self._best_solution
-        if os.path.isdir(checkpoint_path):
-            for i in range(100000):
-                checkpoint_path = os.path.join(
-                    checkpoint_path, f"pyhopper_run_{i:05d}.ckpt"
-                )
-                if not os.path.isfile(checkpoint_path):
-                    break
+
+        checkpoint_path = convert_to_checkpoint_path(convert_to_checkpoint_path)
         serializer.store(checkpoint_path, state_dict)
         return checkpoint_path
 
@@ -634,3 +640,7 @@ class Search:
     @property
     def best_f(self):
         return self._best_f
+
+    @property
+    def history(self):
+        return self._history

@@ -485,22 +485,14 @@ class RunContext:
         self.run_history = RunHistory(self.direction)
         self.ignore_nans = ignore_nans
         self.schedule = schedule
-        self.callbacks = self.hook_callbacks(callbacks)
+        self.callbacks = callbacks
+        self.pbar = None
         if not quiet:
-            pbar = ProgBar(schedule, self.run_history, disable=quiet)
-            self.callbacks.append(pbar)
+            self.pbar = ProgBar(schedule, self.run_history, disable=quiet)
+            self.callbacks.append(self.pbar)
         # Must be the first callback
         self.callbacks.insert(0, self.run_history)
         self.task_executor = task_executor
-
-    @staticmethod
-    def hook_callbacks(callbacks):
-        if callbacks is None:
-            return []
-        if not isinstance(callbacks, list):
-            # Convert single callback object to a list of size 1
-            callbacks = [callbacks]
-        return callbacks
 
     def state_dict(self):
         return {
