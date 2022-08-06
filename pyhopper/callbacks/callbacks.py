@@ -61,7 +61,7 @@ class Callback:
         pass
 
 
-class CheckpointCallback:
+class CheckpointCallback(Callback):
     def __init__(self, checkpoint_path):
         self._checkpoint_path = convert_to_checkpoint_path(checkpoint_path)
         self._search_obj = None
@@ -74,10 +74,9 @@ class CheckpointCallback:
         self._search_obj = search
         if os.path.isfile(self._checkpoint_path):
             self._search_obj.load(self._checkpoint_path)
-            if self._search_obj._run_context.pbar is not None:
-                self._search_obj._run_context.pbar.write(
-                    f"Restored search from checkpoint '{self._checkpoint_path}'"
-                )
+            self._search_obj._run_context.pbar.write(
+                f"Restored search from checkpoint '{self._checkpoint_path}'"
+            )
 
     def on_evaluate_end(self, candidate: dict, f: float, info: ParamInfo):
         self._search_obj.save(self._checkpoint_path)
@@ -89,7 +88,9 @@ class CheckpointCallback:
         self._search_obj.save(self._checkpoint_path)
 
     def on_search_end(self):
-        pass
+        self._search_obj.save(
+            self._checkpoint_path, save_run_context=False
+        )  # Search is done -> forget run context
 
 
 class History(Callback):

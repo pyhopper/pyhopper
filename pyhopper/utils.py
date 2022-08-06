@@ -11,7 +11,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import gzip
 import os
+import pickle
 from enum import Enum
 from typing import Union
 import numpy as np
@@ -65,6 +67,17 @@ def convert_to_list(list_or_obj):
         # Convert single callback object to a list of size 1
         list_or_obj = [list_or_obj]
     return list_or_obj
+
+
+def store_dict(filename, obj):
+    with gzip.open(filename, "wb") as f:
+        pickle.dump(obj, f)
+
+
+def load_dict(filename):
+    with gzip.open(filename, "rb") as f:
+        obj = pickle.load(f)
+    return obj
 
 
 def convert_to_checkpoint_path(checkpoint_path):

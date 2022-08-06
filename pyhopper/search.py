@@ -13,7 +13,6 @@
 # limitations under the License.
 import os.path
 
-from . import serializer
 from .cache import EvaluationCache
 from .callbacks import History
 from .callbacks.callbacks import CheckpointCallback
@@ -45,6 +44,8 @@ from .utils import (
     merge_dicts,
     convert_to_list,
     convert_to_checkpoint_path,
+    load_dict,
+    store_dict,
 )
 
 
@@ -478,6 +479,7 @@ class Search:
         end_temperature: float = 0,
         kwargs=None,
         checkpoint_path=None,
+        overwrite_checkpoint=False,
         keep_history=True,
     ):
         """
@@ -527,7 +529,11 @@ class Search:
         )
 
         # The last step of the initialization is to potentially restore from a previous checkpoint
-        if checkpoint_path is not None and os.path.isfile(checkpoint_path):
+        if (
+            checkpoint_path is not None
+            and os.path.isfile(checkpoint_path)
+            and not overwrite_checkpoint
+        ):
             self.load(checkpoint_path)
 
         # Initialization for run is now done -> let's start search
@@ -557,7 +563,7 @@ class Search:
                 )
             # If estimated runtime exceeds timeout let's already terminate
             if self.manual_queue_count > 0:
-                candidate = self._manually_queued_candidates.pop(-1)
+                candidate = self._manually_queued_candidates.pop(0)
                 candidate_type = CandidateType.MANUALLY_ADDED
             elif schedule.is_in_seeding_mode():
                 candidate = self.sample_solution()
@@ -596,10 +602,12 @@ class Search:
 
         return self._best_solution
 
-    def save(self, checkpoint_path):
+    def save(self, checkpoint_path, save_run_context=True):
         state_dict = {}
         state_dict["run_context"] = (
-            None if self._run_context is None else self._run_context.state_dict()
+            None
+            if self._run_context is None or not save_run_context
+            else self._run_context.state_dict()
         )
         state_dict["cache"] = self._f_cache.state_dict()
         state_dict["best_f"] = self._best_f
@@ -607,18 +615,22 @@ class Search:
         state_dict["best_solution"] = self._best_solution
 
         checkpoint_path = convert_to_checkpoint_path(checkpoint_path)
-        serializer.store(checkpoint_path, state_dict)
+        store_dict(checkpoint_path, state_dict)
         return checkpoint_path
 
     def load(self, checkpoint_path, restore_run_context=True):
-        state_dict = serializer.load(checkpoint_path)
+        state_dict = load_dict(checkpoint_path)
 
-        if restore_run_context and state_dict["run_context"] is not None:
-            self._run_context.load_state_dict(state_dict["run_context"])
+        try:
+            if restore_run_context and state_dict["run_context"] is not None:
+                self._run_context.load_state_dict(state_dict["run_context"])
 
-        self._f_cache.load_state_dict(state_dict["cache"])
-        self._best_f = state_dict["best_f"]
-        self._best_solution = state_dict["best_solution"]
+            self._f_cache.load_state_dict(state_dict["cache"])
+            self._history.load_state_dict(state_dict["history"])
+            self._best_f = state_dict["best_f"]
+            self._best_solution = state_dict["best_solution"]
+        except KeyError as e:
+            raise ValueError(f"Could not parse file '{checkpoint_path}' ({str(e)})")
 
     @property
     def manual_queue_count(self):

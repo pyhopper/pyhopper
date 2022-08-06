@@ -27,7 +27,8 @@ class WandbCallback:
         self._best_params = None
 
     def on_search_start(self, search):
-        wandb.config.update(search.current_run_config)
+        pass
+        # wandb.config.update(search.current_run_config)
 
     def on_evaluate_start(self, candidate, param_info):
         pass

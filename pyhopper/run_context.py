@@ -222,6 +222,9 @@ class ProgBar(Callback):
         )
         self._last_refreshed = time.time()
 
+    def write(self, text):
+        self._tqdm.write(text)
+
     def on_search_start(self, search):
         if not self.disabled:
             self._tqdm.write(f"Search is scheduled for {self._schedule.to_total_str()}")
@@ -487,9 +490,8 @@ class RunContext:
         self.schedule = schedule
         self.callbacks = callbacks
         self.pbar = None
-        if not quiet:
-            self.pbar = ProgBar(schedule, self.run_history, disable=quiet)
-            self.callbacks.append(self.pbar)
+        self.pbar = ProgBar(schedule, self.run_history, disable=quiet)
+        self.callbacks.append(self.pbar)
         # Must be the first callback
         self.callbacks.insert(0, self.run_history)
         self.task_executor = task_executor

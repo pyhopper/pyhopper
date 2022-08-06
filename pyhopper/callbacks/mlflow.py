@@ -13,7 +13,8 @@ class MLflowCallback:
         self._best_params = None
 
     def on_search_start(self, search):
-        mlflow.log_params(search.current_run_config)
+        pass
+        # mlflow.log_params(search.current_run_config)
 
     def on_evaluate_start(self, candidate, param_info):
         pass
