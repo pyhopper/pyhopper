@@ -33,7 +33,7 @@ Numerical instabilities can also result in **exceptions** raise by some code ins
             # some code that may raise an exception
         except (ValueError, ZeroDivisionError):
             # Tell Pyhopper to ignore this parameter candidate
-            raise pyhopper.CancelEvaluation()
+            raise pyhopper.PruneEvaluation()
         return params["x"]
 
     search = pyhopper.Search({"x":pyhopper.float(0,1)})
@@ -42,4 +42,4 @@ Numerical instabilities can also result in **exceptions** raise by some code ins
 
 .. note::
 
-    Pyhopper does not catch any exception other than :meth:`pyhopper.CancelEvaluation()` to allow debugging the objective function.
+    Pyhopper does not catch any exception other than :meth:`pyhopper.PruneEvaluation()` to allow debugging the objective function.

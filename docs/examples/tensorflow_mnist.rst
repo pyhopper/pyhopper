@@ -78,7 +78,7 @@ A typical use-case with Tensorflow would look something like this
         direction="max",
         timeout="4h",
         n_jobs="per-gpu",
-        canceler=pyhopper.cancelers.QuantileCanceler(0.6),
+        canceler=pyhopper.pruners.QuantilePruner(0.6),
     )
     test_acc = train_mnist_mlp(best_params, for_validation=False)
     print(f"Tuned params test accuracy: {100*test_acc:0.2f}%")
@@ -91,7 +91,7 @@ Outputs
     > Search is scheduled for 04:00:00 (h:m:s)
     > Best f: 0.989 (out of 127 params):  98%|█████████▊| [3:56:08<03:49, 52.3 s/param]
     > ============================ Summary ===========================
-    > Mode              : Best f : Steps : Canceled : Time
+    > Mode              : Best f : Steps : Pruned   : Time
     > ----------------  : ----   : ----  : ----     : ----
     > Initial solution  : 0.983  : 1     : 0        : 09:48 (m:s)
     > Random seeding    : 0.986  : 26    : 48       : 04:39:53 (h:m:s)

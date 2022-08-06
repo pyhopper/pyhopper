@@ -10,7 +10,7 @@ In this guide we discuss the most common advanced uses cases of PyHopper.
 
     numpy
     history
-    cancelers
+    pruners
     nans
     tensorboard
     mlflow

@@ -1,4 +1,4 @@
-.. _canceling-label:
+.. _pruning-label:
 
 Discontinuing unpromising candidates during evaluation
 ------------------------------------------------------------------------
@@ -14,8 +14,8 @@ In particular, PyHopper supports Python generators functions as objective functi
 .. code-block:: python
 
     def dummy_of(param):
-        yield 0  # will be ignored, but can be used for canceling the evaluation
-        yield 1  # will be ignored, but can be used for canceling the evaluation
+        yield 0  # a quick estimate of the objective value that can be used for pruning the evaluation
+        yield 1  # another estimate
         yield -(param["x"] ** 2)  # true objective function
 
     search = pyhopper.Search(
@@ -28,7 +28,7 @@ In particular, PyHopper supports Python generators functions as objective functi
 By default PyHopper uses the **last item** of the iterator as objective score and ignores the values yielded before.
 However, the values yielded before can be used for detecting and consequently discontinuing unpromising evaluations.
 
-To determine if an evaluation should be discontinued or not PyHopper provides the :meth:`pyhopper.cancelers.EarlyCanceler` interface, which can be passed to calls of :code:`Search.run`.
+To determine if an evaluation should be discontinued or not PyHopper provides the :meth:`pyhopper.pruners.Pruner` interface, which can be passed to calls of :code:`Search.run`.
 For example
 
 .. code-block:: python
@@ -50,14 +50,14 @@ For example
             "x": pyhopper.float(),
         }
     )
-    search.run(generator_of, max_steps=50, canceler=pyhopper.cancelers.QuantileCanceler(0.8))
+    search.run(generator_of, max_steps=50, pruner=pyhopper.pruners.QuantilePruner(0.8))
 
 .. code-block:: text
 
     > Search is scheduled for 50 steps
     > Current best 0.0596: 100%|█████████████████████████| 50/50 [00:00<00:00, 101.45steps/s]
     > ======================= Summary ======================
-    > Mode              : Best f : Steps : Canceled : Time
+    > Mode              : Best f : Steps : Pruned    : Time
     > -----------       : ---    : ---   : ---       : ---
     > Initial solution  : -4.09  : 1     : 0         : 9 ms
     > Random seeding    : 0.0596 : 6     : 43        : 60 ms
@@ -65,7 +65,7 @@ For example
     > Total             : 0.0596 : 7     : 43        : 69 ms
     > ======================================================
 
-discontinues evaluation if at least one of the intermediate results are within the *worse* 0.8-quantile of the non-canceled intermediate results so far.
+discontinues evaluation if at least one of the intermediate results are within the *worse* 0.8-quantile of the non-pruned intermediate results so far.
 
 For convenience, the :meth:`pyhopper.wrap_n_times` wrapper function accepts an optional argument :code:`yield_after` that turns the wrapped function in to a generator function.
 
@@ -85,7 +85,7 @@ For convenience, the :meth:`pyhopper.wrap_n_times` wrapper function accepts an o
     search.run(
         pyhopper.wrap_n_times(noisy_objective, n=5, yield_after=0),
         max_steps=50,
-        canceler=pyhopper.cancelers.QuantileCanceler(0.8),
+        pruner=pyhopper.pruners.QuantilePruner(0.8),
     )
 
 .. code-block:: text
@@ -93,7 +93,7 @@ For convenience, the :meth:`pyhopper.wrap_n_times` wrapper function accepts an o
     > Search is scheduled for 50 steps
     > Current best 0.0404: 100%|████████████████████████████| 50/50 [00:00<00:00, 99.08steps/s]
     > ======================== Summary =======================
-    > Mode              : Best f   : Steps : Canceled : Time
+    > Mode              : Best f   : Steps : Pruned    : Time
     > -----------       : ---      : ---   : ---       : ---
     > Initial solution  : -0.00734 : 1     : 0         : 10 ms
     > Random seeding    : 0.0404   : 5     : 44        : 49 ms
@@ -101,12 +101,12 @@ For convenience, the :meth:`pyhopper.wrap_n_times` wrapper function accepts an o
     > Total             : 0.0404   : 6     : 44        : 59 ms
     > ========================================================
 
-A complete list of available cancelers can be found at :ref:`canceling-api-label`.
+A complete list of available pruners can be found at :ref:`pruning-api-label`.
 
-Manually canceling evaluations
+Manually pruning evaluations
 ===============================
 
-To manually cancel a runing evaluation we can raise a :meth:`pyhopper.CancelEvaluation` exception.
+To manually prune a running evaluation we can raise a :meth:`pyhopper.PruneEvaluation` exception.
 
 .. code-block:: python
 
@@ -121,8 +121,8 @@ To manually cancel a runing evaluation we can raise a :meth:`pyhopper.CancelEval
         for i in range(5):
             value = noisy_objective(param)
             if value < -0.5:
-                # Let's cancel this evaluation if an evaluation is below -0.5
-                raise pyhopper.CancelEvaluation()
+                # Let's prune this evaluation if an evaluation is below -0.5
+                raise pyhopper.PruneEvaluation()
 
             evals.append(value)
         return np.mean(evals)     # Final objective function
@@ -139,7 +139,7 @@ To manually cancel a runing evaluation we can raise a :meth:`pyhopper.CancelEval
     > Search is scheduled for 50 steps
     > Best f: 0.0388 (out of 32 params): 100%|███████|  [00:00<00:00, 2203.5 params/s]
     > ====================== Summary ======================
-    > Mode              : Best f : Steps : Canceled : Time
+    > Mode              : Best f : Steps : Pruned   : Time
     > ----------------  : ----   : ----  : ----     : ----
     > Initial solution  : x      : 0     : 1        : 0 ms
     > Random seeding    : 0.0324 : 5     : 9        : 1 ms

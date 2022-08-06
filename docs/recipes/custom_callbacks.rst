@@ -15,8 +15,8 @@ Callbacks can hook at the following six events
         def on_evaluate_end(self, param: dict, f: float, info: pyhopper.ParamInfo):
             pass # Called after parameter `param` is evaluated to the value f
 
-        def on_evaluate_cancelled(self, param: dict, info: pyhopper.ParamInfo):
-            pass # Called if the evaluation of parameter `param` is canceled
+        def on_evaluate_pruned(self, param: dict, info: pyhopper.ParamInfo):
+            pass # Called if the evaluation of parameter `param` is pruned
 
         def on_new_best(self, new_best: dict, f: float, info: pyhopper.ParamInfo):
             pass # Called if a new best parameter `new_best` with value f was found

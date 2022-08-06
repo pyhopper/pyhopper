@@ -1,8 +1,9 @@
 Tracking sampled hyperparameters
 ----------------------------------------------------------
 
-In some cases we are not only interested in the best hyperparameter. Instead we also want to visualize and analyze which hyperparamter ranges result in a high objective value.
-For such cases we can use the :meth:`pyhopper.callbacks.History` callback, which takes care of recording and organizing the evaluated hyperparameters.
+In some cases we are not only interested in the best hyperparameter but the entire distribution of hyperparameters and
+corresponding objective values.
+Pyhopper keeps track of all evaluated candidates in the :attr:`pyhopper.Search.history` property.
 
 .. code-block:: python
 
@@ -27,15 +28,14 @@ For such cases we can use the :meth:`pyhopper.callbacks.History` callback, which
             "y": pyhopper.float(-10, 10),
         },
     )
-    history = pyhopper.callbacks.History()
-    search.run(objective, direction="max", seeding_steps=10, max_steps=50, callbacks=history)
+    search.run(objective, direction="max", seeding_steps=10, max_steps=50)
 
     # Let's plot the sampled parameters as the 2D objective surface
     fig, ax = plt.subplots(figsize=(5, 5))
     b = ax.scatter(
-        x=history.get_marginal("x"),
-        y=history.get_marginal("y"),
-        c=history.fs,
+        x=search.history["x"],
+        y=search.history["y"],
+        c=search.history.fs,
     )
     ax.set_xlabel("y")
     ax.set_xlabel("x")
@@ -47,8 +47,8 @@ For such cases we can use the :meth:`pyhopper.callbacks.History` callback, which
 
     # Let's plot evaluated objective values over the optimization process
     fig, ax = plt.subplots(figsize=(5, 5))
-    ax.plot(history.steps, history.best_fs, color="red", label="Best so far")
-    ax.scatter(x=history.steps, y=history.fs, color="blue", label="Evaluated")
+    ax.plot(search.history.steps, search.history.best_fs, color="red", label="Best so far")
+    ax.scatter(x=search.history.steps, y=search.history.fs, color="blue", label="Evaluated")
     ax.set_xlabel("Step")
     ax.set_ylabel("Objective value")
     fig.legend(loc="upper left")
