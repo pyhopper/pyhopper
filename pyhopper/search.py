@@ -217,9 +217,10 @@ class Search:
 
         self._signal_listener = SignalListener()
         self._history = History()
+        self._checkpoint_path = None
 
     def __iadd__(self, other):
-        self.add(other)
+        self.enqueue(other)
         return self
 
     def __setitem__(self, key, value):
@@ -271,9 +272,9 @@ class Search:
         """Forgets all values of already evaluated parameters."""
         self._f_cache.clear()
 
-    def add(self, candidate: dict) -> None:
+    def enqueue(self, candidate: dict) -> None:
         """
-        Adding a guess for the optimal parameters to the search queue.
+        Queues a guess for the optimal parameters to the search queue.
         :param candidate: dict representing a subset of the parameters assigned to a value
         """
         added_candidate = {}
@@ -370,7 +371,7 @@ class Search:
             candidate_result = execute(
                 objective_function,
                 candidate,
-                self._run_context.canceler,
+                self._run_context.pruner,
                 kwargs,
             )
             param_info.finished_at = time.time()
@@ -380,7 +381,7 @@ class Search:
                 objective_function,
                 candidate,
                 param_info,
-                self._run_context.canceler,
+                self._run_context.pruner,
                 kwargs,
             )
 
@@ -408,27 +409,27 @@ class Search:
                 self._async_result_ready(candidate, param_info, candidate_result)
 
     def _async_result_ready(self, candidate, param_info, candidate_result):
-        if candidate_result.canceled_by_nan and not self._run_context.ignore_nans:
+        if candidate_result.pruned_by_nan and not self._run_context.ignore_nans:
             raise ValueError(
-                "NaN returned in objective function. If NaNs should be ignored (treated as canceled evaluations) pass 'ignore_nans=True' argument to 'run'"
+                "NaN returned in objective function. If NaNs should be ignored (treated as pruned evaluations) pass 'ignore_nans=True' argument to 'run'"
             )
         self._f_cache.commit(candidate, candidate_result.value)
         if (
-            self._run_context.canceler is not None
-            and not candidate_result.canceled_by_user
-            and not candidate_result.canceled_by_nan
+            self._run_context.pruner is not None
+            and not candidate_result.pruned_by_user
+            and not candidate_result.pruned_by_nan
         ):
-            # If the cancelation was done by the user or NaN we should not tell the Earlycanceler object
+            # If the prune was done by the user or NaN we should not tell the Pruner object
             if candidate_result.intermediate_results is None:
                 raise ValueError(
-                    "An Earlycanceler was passed but the objective function is not a generator"
+                    "An Earlypruner was passed but the objective function is not a generator"
                 )
-            self._run_context.canceler.append(candidate_result.intermediate_results)
+            self._run_context.pruner.append(candidate_result.intermediate_results)
 
-        if candidate_result.was_canceled:
-            param_info.is_canceled = True
+        if candidate_result.was_pruned:
+            param_info.is_pruned = True
             for c in self._run_context.callbacks:
-                c.on_evaluate_canceled(candidate, param_info)
+                c.on_evaluate_pruned(candidate, param_info)
             return
 
         for c in self._run_context.callbacks:
@@ -466,7 +467,7 @@ class Search:
         seeding_steps: Optional[int] = None,
         seeding_timeout: Union[int, float, str, None] = None,
         seeding_ratio: Optional[float] = 0.3,
-        canceler=None,
+        pruner=None,
         n_jobs=1,
         quiet=False,
         ignore_nans=False,
@@ -506,11 +507,13 @@ class Search:
         if keep_history:
             callbacks.append(self._history)
         if checkpoint_path is not None:
+            checkpoint_path = convert_to_checkpoint_path(checkpoint_path)
+            self._checkpoint_path = checkpoint_path
             callbacks.append(CheckpointCallback(checkpoint_path))
 
         self._run_context = RunContext(
             direction,
-            canceler,
+            pruner,
             ignore_nans,
             schedule,
             callbacks,
@@ -518,24 +521,16 @@ class Search:
             quiet,
         )
 
-        self._current_run_config = {
-            "direction": direction,
-            "timeout": timeout,
-            "max_steps": max_steps,
-            "endless_mode": endless_mode,
-            "seeding_steps": seeding_steps,
-            "seeding_timeout": seeding_timeout,
-            "seeding_ratio": seeding_ratio,
-            "n_jobs": n_jobs,
-            "use_canceler": canceler is not None,
-            "ignore_nans": ignore_nans,
-            "start_temperature": start_temperature,
-            "end_temperature": end_temperature,
-        }
         self._f_cache.set_enable(enable_rejection_cache)
         self._signal_listener.register_signal(
             schedule.signal_gradually_quit, self._force_termination
         )
+
+        # The last step of the initialization is to potentially restore from a previous checkpoint
+        if checkpoint_path is not None and os.path.isfile(checkpoint_path):
+            self.load(checkpoint_path)
+
+        # Initialization for run is now done -> let's start search
         for c in self._run_context.callbacks:
             c.on_search_start(self)
 
@@ -558,7 +553,7 @@ class Search:
         ):
             if len(self._free_params) == 0 and self.manual_queue_count == 0:
                 raise ValueError(
-                    "There are not parameters to optimize (search space does not contain any `pyhopper.Parameter` instance)"
+                    "There are not parameters to tune (search space does not contain any `pyhopper.Parameter` instance)"
                 )
             # If estimated runtime exceeds timeout let's already terminate
             if self.manual_queue_count > 0:
@@ -611,7 +606,7 @@ class Search:
         state_dict["history"] = self._history.state_dict()
         state_dict["best_solution"] = self._best_solution
 
-        checkpoint_path = convert_to_checkpoint_path(convert_to_checkpoint_path)
+        checkpoint_path = convert_to_checkpoint_path(checkpoint_path)
         serializer.store(checkpoint_path, state_dict)
         return checkpoint_path
 
@@ -630,8 +625,8 @@ class Search:
         return len(self._manually_queued_candidates)
 
     @property
-    def current_run_config(self):
-        return self._current_run_config
+    def checkpoint_path(self):
+        return self._checkpoint_path
 
     @property
     def best(self):

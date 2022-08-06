@@ -229,7 +229,7 @@ class ProgBar(Callback):
     def on_evaluate_end(self, new_best: dict, f: float, info: ParamInfo):
         self.update()
 
-    def on_evaluate_canceled(self, candidate: dict, info: ParamInfo):
+    def on_evaluate_pruned(self, candidate: dict, info: ParamInfo):
         self.update()
 
     def update(self, close=False):
@@ -255,7 +255,7 @@ class ProgBar(Callback):
     # 48% xXXXXXXXxxxxxxxxxxxxxxxxxxxxx | best: 0.42 (out of 3213) (00:38<1:00) [2.3min/param]
     def _str_time_per_eval(self):
         total_params_evaluated = (
-            self._run_history.total_amount + self._run_history.total_canceled
+            self._run_history.total_amount + self._run_history.total_pruned
         )
         if total_params_evaluated == 0:
             return "..."
@@ -280,7 +280,7 @@ class ProgBar(Callback):
                     "Initial solution ",
                     self._run_history.best_per_type[CandidateType.INIT],
                     self._run_history.amount_per_type[CandidateType.INIT],
-                    self._run_history.canceled_per_type[CandidateType.INIT],
+                    self._run_history.pruned_per_type[CandidateType.INIT],
                     self._run_history.runtime_per_type[CandidateType.INIT],
                 )
             )
@@ -290,7 +290,7 @@ class ProgBar(Callback):
                     "Manually added ",
                     self._run_history.best_per_type[CandidateType.MANUALLY_ADDED],
                     self._run_history.amount_per_type[CandidateType.MANUALLY_ADDED],
-                    self._run_history.canceled_per_type[CandidateType.MANUALLY_ADDED],
+                    self._run_history.pruned_per_type[CandidateType.MANUALLY_ADDED],
                     self._run_history.runtime_per_type[CandidateType.MANUALLY_ADDED],
                 )
             )
@@ -300,7 +300,7 @@ class ProgBar(Callback):
                     "Random seeding",
                     self._run_history.best_per_type[CandidateType.RANDOM_SEEDING],
                     self._run_history.amount_per_type[CandidateType.RANDOM_SEEDING],
-                    self._run_history.canceled_per_type[CandidateType.RANDOM_SEEDING],
+                    self._run_history.pruned_per_type[CandidateType.RANDOM_SEEDING],
                     self._run_history.runtime_per_type[CandidateType.RANDOM_SEEDING],
                 )
             )
@@ -310,7 +310,7 @@ class ProgBar(Callback):
                     "Local sampling",
                     self._run_history.best_per_type[CandidateType.LOCAL_SAMPLING],
                     self._run_history.amount_per_type[CandidateType.LOCAL_SAMPLING],
-                    self._run_history.canceled_per_type[CandidateType.LOCAL_SAMPLING],
+                    self._run_history.pruned_per_type[CandidateType.LOCAL_SAMPLING],
                     self._run_history.runtime_per_type[CandidateType.LOCAL_SAMPLING],
                 )
             )
@@ -319,27 +319,27 @@ class ProgBar(Callback):
                 "Total",
                 self._run_history.best_f,
                 self._run_history.total_amount,
-                self._run_history.total_canceled,
+                self._run_history.total_pruned,
                 self._schedule.current_runtime,
             )
         )
         text_list = []
-        for text, f, steps, canceled, elapsed in text_value_quadtuple:
+        for text, f, steps, pruned, elapsed in text_value_quadtuple:
             value = "x" if f is None else f"{f:0.3g}"
             text_list.append(
                 [
                     text,
                     value,
                     steps_to_pretty_str(steps),
-                    steps_to_pretty_str(canceled),
+                    steps_to_pretty_str(pruned),
                     time_to_pretty_str(elapsed),
                 ]
             )
-        text_list.insert(0, ["Mode", "Best f", "Steps", "Canceled", "Time"])
+        text_list.insert(0, ["Mode", "Best f", "Steps", "pruned", "Time"])
         text_list.insert(1, ["----------------", "----", "----", "----", "----"])
         text_list.insert(-1, ["----------------", "----", "----", "----", "----"])
-        if self._run_history.total_canceled == 0:
-            # No candidate was canceled so let's not show this column
+        if self._run_history.total_pruned == 0:
+            # No candidate was pruned so let's not show this column
             for t in text_list:
                 t.pop(3)
         num_items = len(text_list[0])
@@ -377,7 +377,7 @@ class RunHistory(Callback):
         self._direction = direction
         self.total_runtime = 0
         self.total_amount = 0
-        self.total_canceled = 0
+        self.total_pruned = 0
         self.estimated_candidate_runtime = 0
         self.best_f = None
 
@@ -399,7 +399,7 @@ class RunHistory(Callback):
             CandidateType.RANDOM_SEEDING: 0,
             CandidateType.LOCAL_SAMPLING: 0,
         }
-        self.canceled_per_type = {
+        self.pruned_per_type = {
             CandidateType.INIT: 0,
             CandidateType.MANUALLY_ADDED: 0,
             CandidateType.RANDOM_SEEDING: 0,
@@ -413,9 +413,9 @@ class RunHistory(Callback):
             or (self._direction == "min" and new < old)
         )
 
-    def on_evaluate_canceled(self, candidate: dict, info: ParamInfo):
-        self.canceled_per_type[info.type] += 1
-        self.total_canceled += 1
+    def on_evaluate_pruned(self, candidate: dict, info: ParamInfo):
+        self.pruned_per_type[info.type] += 1
+        self.total_pruned += 1
 
     def on_search_start(self, search):
         self.best_f = search.best_f
@@ -441,7 +441,7 @@ class RunHistory(Callback):
         return {
             "total_runtime": self.total_runtime,
             "total_amount": self.total_amount,
-            "total_canceled": self.total_canceled,
+            "total_pruned": self.total_pruned,
             "estimated_candidate_runtime": self.estimated_candidate_runtime,
             "best_f": self.best_f,
         }
@@ -449,7 +449,7 @@ class RunHistory(Callback):
     def load_state_dict(self, state):
         self.total_runtime = state["total_runtime"]
         self.total_amount = state["total_amount"]
-        self.total_canceled = state["total_canceled"]
+        self.total_pruned = state["total_pruned"]
         self.estimated_candidate_runtime = state["estimated_candidate_runtime"]
         self.best_f = state["best_f"]
 
@@ -458,7 +458,7 @@ class RunContext:
     def __init__(
         self,
         direction,
-        canceler,
+        pruner,
         ignore_nans,
         schedule,
         callbacks,
@@ -479,9 +479,9 @@ class RunContext:
             )
         direction = direction.lower()[0:3]  # only save first 3 chars
         self.direction = direction
-        self.canceler = canceler
-        if self.canceler is not None:
-            self.canceler.direction = self.direction
+        self.pruner = pruner
+        if self.pruner is not None:
+            self.pruner.direction = self.direction
         self.run_history = RunHistory(self.direction)
         self.ignore_nans = ignore_nans
         self.schedule = schedule
@@ -498,11 +498,11 @@ class RunContext:
         return {
             "run_history": self.run_history.state_dict(),
             "schedule": self.schedule.state_dict(),
-            "canceler": None if self.canceler is None else self.canceler.state_dict(),
+            "pruner": None if self.pruner is None else self.pruner.state_dict(),
         }
 
     def load_state_dict(self, state):
         self.run_history.load_state_dict(state["run_history"])
         self.schedule.load_state_dict(state["schedule"])
-        if self.canceler is not None:
-            self.canceler.load_state_dict(state["canceler"])
+        if self.pruner is not None:
+            self.pruner.load_state_dict(state["pruner"])

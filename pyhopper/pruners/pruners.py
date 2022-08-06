@@ -1,4 +1,4 @@
-# Copyright 2021 Mathias Lechner and the PyHopper team
+# Copyright 2022 Mathias Lechner and the PyHopper team
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@
 import numpy as np
 
 
-class EarlyCanceler:
+class Pruner:
     def __init__(self):
         self.direction = None
 
@@ -39,7 +39,7 @@ class EarlyCanceler:
     def append(self, partial_results: list):
         raise NotImplementedError()
 
-    def should_cancel(self, partial_results: list):
+    def should_prune(self, partial_results: list):
         raise NotImplementedError()
 
     def state_dict(self):
@@ -49,7 +49,7 @@ class EarlyCanceler:
         pass
 
 
-class QuantileCanceler(EarlyCanceler):
+class QuantilePruner(Pruner):
     def __init__(self, q, warmup=5):
         super().__init__()
         if 1 <= q < 100:
@@ -77,21 +77,21 @@ class QuantileCanceler(EarlyCanceler):
         for i in range(len(partial_results)):
             self.intermediates[i].append(partial_results[i])
 
-    def should_cancel(self, partial_results: list):
+    def should_prune(self, partial_results: list):
         if self.n is not None and len(partial_results) == self.n:
-            # In case already all n intermediate values are obtained there is not need to cancel anymore
+            # In case already all n intermediate values are obtained there is not need to prune anymore
             return False
-        # First 'warmup' runs will not be cancelled
+        # First 'warmup' runs will not be pruned
         if self.intermediates is None:
             return False
 
         new_index = len(partial_results) - 1
         if len(self.intermediates[new_index]) < self.warmup:
-            # make sure we have at least warmup samples before starting to cancel
+            # make sure we have at least warmup samples before starting to prune
             return False
         q = self.q if self.direction == "max" else 1.0 - self.q
         quantile = np.quantile(self.intermediates[new_index], q)
-        # Cancel if arrived partial result is worse than `q` quantile
+        # prune if arrived partial result is worse than `q` quantile
         return not self.is_better_or_equal(partial_results[new_index], quantile)
 
     def state_dict(self):
@@ -102,7 +102,7 @@ class QuantileCanceler(EarlyCanceler):
         self.intermediates = state_dict["intermediates"]
 
 
-class TopKCanceler(EarlyCanceler):
+class TopKPruner(Pruner):
     def __init__(self, k):
         super().__init__()
         self.k = k
@@ -129,7 +129,7 @@ class TopKCanceler(EarlyCanceler):
             self.top_k_intermediates = [[] for i in range(self.n)]
 
         if len(partial_results) < self.n:
-            # evaluation was cancelled -> not interesting
+            # evaluation was pruned -> not interesting
             return
         elif len(partial_results) > self.n:
             raise ValueError(
@@ -163,12 +163,12 @@ class TopKCanceler(EarlyCanceler):
                     self.top_k_intermediates[i].pop(worst_index)
                 self.top_k_of.pop(worst_index)
 
-    def should_cancel(self, partial_results: list):
-        # First k runs will not be cancelled
+    def should_prune(self, partial_results: list):
+        # First k runs will not be pruned
         if len(self.top_k_of) < self.k:
             return False
         if self.n is not None and len(partial_results) == self.n:
-            # In case already all n intermediate values are obtained there is not need to cancel anymore
+            # In case already all n intermediate values are obtained there is not need to prune anymore
             return False
 
         for i, r in enumerate(partial_results):

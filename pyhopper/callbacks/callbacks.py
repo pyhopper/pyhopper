@@ -29,10 +29,10 @@ class Callback:
         """
         pass
 
-    def on_evaluate_cancelled(self, candidate: dict, info: ParamInfo):
-        """Called if `candidate` was cancelled (by an :meth:`pyhopper.cancelers.EarlyCanceller`)
+    def on_evaluate_pruned(self, candidate: dict, info: ParamInfo):
+        """Called if `candidate` was pruned (by an :meth:`pyhopper.pruners.Pruner`)
 
-        :param candidate: Parameter value of the cancelled candidate
+        :param candidate: Parameter value of the pruned candidate
         """
         pass
 
@@ -66,6 +66,10 @@ class CheckpointCallback:
         self._checkpoint_path = convert_to_checkpoint_path(checkpoint_path)
         self._search_obj = None
 
+    @property
+    def checkpoint_path(self):
+        return self._checkpoint_path
+
     def on_search_start(self, search: "pyhopper.Search"):
         self._search_obj = search
         if os.path.isfile(self._checkpoint_path):
@@ -78,7 +82,7 @@ class CheckpointCallback:
     def on_evaluate_end(self, candidate: dict, f: float, info: ParamInfo):
         self._search_obj.save(self._checkpoint_path)
 
-    def on_evaluate_cancelled(self, candidate: dict, info: ParamInfo):
+    def on_evaluate_pruned(self, candidate: dict, info: ParamInfo):
         self._search_obj.save(self._checkpoint_path)
 
     def on_new_best(self, new_best: dict, f: float, info: ParamInfo):
@@ -103,10 +107,10 @@ class History(Callback):
         self._log_best_f = []
         self._log_runtime = []
 
-        self._cancelled_types = []
-        self._cancelled_candidates = []
-        self._cancelled_finished_at = []
-        self._cancelled_runtime = []
+        self._pruned_types = []
+        self._pruned_candidates = []
+        self._pruned_finished_at = []
+        self._pruned_runtime = []
         self._start_time = time.time()
         self._current_best_f = None
         self._enabled = True
@@ -119,10 +123,10 @@ class History(Callback):
             "log_finished_at": self._log_finished_at,
             "log_best_f": self._log_best_f,
             "log_runtime": self._log_runtime,
-            "cancelled_types": self._cancelled_types,
-            "cancelled_candidates": self._cancelled_candidates,
-            "cancelled_finished_at": self._cancelled_finished_at,
-            "cancelled_runtime": self._cancelled_runtime,
+            "pruned_types": self._pruned_types,
+            "pruned_candidates": self._pruned_candidates,
+            "pruned_finished_at": self._pruned_finished_at,
+            "pruned_runtime": self._pruned_runtime,
             "start_time": self._start_time,
             "current_best_f": self._current_best_f,
         }
@@ -133,24 +137,24 @@ class History(Callback):
         self._log_f = state_dict["log_f"]
         self._log_finished_at = state_dict["log_finished_at"]
         self._log_runtime = state_dict["log_runtime"]
-        self._cancelled_types = state_dict["cancelled_types"]
-        self._cancelled_candidates = state_dict["cancelled_candidates"]
-        self._cancelled_finished_at = state_dict["cancelled_finished_at"]
-        self._cancelled_runtime = state_dict["cancelled_runtime"]
+        self._pruned_types = state_dict["pruned_types"]
+        self._pruned_candidates = state_dict["pruned_candidates"]
+        self._pruned_finished_at = state_dict["pruned_finished_at"]
+        self._pruned_runtime = state_dict["pruned_runtime"]
         self._start_time = state_dict["start_time"]
         self._current_best_f = state_dict["current_best_f"]
 
     def on_search_start(self, search: "pyhopper.Search"):
         self._current_best_f = search.best_f
 
-    def on_evaluate_cancelled(self, candidate: dict, info: ParamInfo):
+    def on_evaluate_pruned(self, candidate: dict, info: ParamInfo):
         runtime = info.finished_at - info.sampled_at
-        self._cancelled_runtime.append(runtime)
-        self._cancelled_types.append(info.type)
-        self._cancelled_finished_at.append(info.finished_at - self._start_time)
+        self._pruned_runtime.append(runtime)
+        self._pruned_types.append(info.type)
+        self._pruned_finished_at.append(info.finished_at - self._start_time)
 
         if self._log_candidate_enabled:
-            self._cancelled_candidates.append(candidate)
+            self._pruned_candidates.append(candidate)
 
     def on_evaluate_end(self, candidate: dict, f: float, info: ParamInfo):
         runtime = info.finished_at - info.sampled_at
@@ -180,15 +184,15 @@ class History(Callback):
                 )
         return [self._log_candidate[i][item] for i in range(len(self._log_candidate))]
 
-    def get_cancelled_marginal(self, item):
-        if len(self._cancelled_candidates) > 0:
-            if item not in self._cancelled_candidates[0].keys():
+    def get_pruned_marginal(self, item):
+        if len(self._pruned_candidates) > 0:
+            if item not in self._pruned_candidates[0].keys():
                 raise ValueError(
                     f"Error: Could not find key '{item}' in logged parameters"
                 )
         return [
-            self._cancelled_candidates[i][item]
-            for i in range(len(self._cancelled_candidates))
+            self._pruned_candidates[i][item]
+            for i in range(len(self._pruned_candidates))
         ]
 
     def __getitem__(self, item):
@@ -243,10 +247,10 @@ class History(Callback):
         self._log_best_f = []
         self._log_runtime = []
 
-        self._cancelled_types = []
-        self._cancelled_candidates = []
-        self._cancelled_finished_at = []
-        self._cancelled_runtime = []
+        self._pruned_types = []
+        self._pruned_candidates = []
+        self._pruned_finished_at = []
+        self._pruned_runtime = []
         self._start_time = time.time()
 
 

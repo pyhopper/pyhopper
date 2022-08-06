@@ -76,7 +76,7 @@ class SignalListener:
         self._sigterm_received = 0
 
 
-class CancelEvaluation(Exception):
+class PruneEvaluation(Exception):
     pass
 
 
@@ -163,9 +163,9 @@ class GPUAllocator:
 class EvaluationResult:
     def __init__(self):
         self.value = None
-        self.was_canceled = None
-        self.canceled_by_user = False
-        self.canceled_by_nan = False
+        self.was_pruned = None
+        self.pruned_by_user = False
+        self.pruned_by_nan = False
         self.intermediate_results = None
 
 
@@ -178,7 +178,7 @@ def dummy_signal_handler(sig, frame):
     # os.kill()
 
 
-def execute(objective_function, candidate, canceler, kwargs, remote=False, gpu=None):
+def execute(objective_function, candidate, pruner, kwargs, remote=False, gpu=None):
     """
     Wrapper function for the objective function that takes care of GPU allocation and the SIGINT signal handle
     """
@@ -195,8 +195,8 @@ def execute(objective_function, candidate, canceler, kwargs, remote=False, gpu=N
         if iter_or_result is None:
             raise ValueError(
                 "Objective function returned 'None'. This probably means you forgot to add a 'return' (or 'yield') "
-                "statement at the end of the function. If you intended to cancel the evaluation, you can do that by "
-                "\n```\nraise pyhopper.CancelEvaluation()\n```\n"
+                "statement at the end of the function. If you intended to prune the evaluation, you can do that by "
+                "\n```\nraise pyhopper.PruneEvaluation()\n```\n"
             )
         if isinstance(iter_or_result, GeneratorType):
             # Generator mode
@@ -208,14 +208,14 @@ def execute(objective_function, candidate, canceler, kwargs, remote=False, gpu=N
                     eval_result.intermediate_results.append(ir)
                     eval_result.value = ir
                     if np.isnan(ir):
-                        eval_result.was_canceled = True
-                        eval_result.canceled_by_nan = True
+                        eval_result.was_pruned = True
+                        eval_result.pruned_by_nan = True
                         repeat = False
-                    if canceler is not None and canceler.should_cancel(
+                    if pruner is not None and pruner.should_prune(
                         eval_result.intermediate_results
                     ):
                         # Let's not continue from here on
-                        eval_result.was_canceled = True
+                        eval_result.was_pruned = True
                         repeat = False
                 except StopIteration:
                     repeat = False
@@ -223,14 +223,14 @@ def execute(objective_function, candidate, canceler, kwargs, remote=False, gpu=N
             # No iterator but a simple function
             eval_result.value = iter_or_result
             if np.isnan(iter_or_result):
-                eval_result.was_canceled = True
-                eval_result.canceled_by_nan = True
-    except CancelEvaluation:
-        # If objective function raises this error, the evaluation will be treated as being canceled
-        eval_result.was_canceled = True
-        # we may need the information if the cancelation was done by the user inside the objective function
-        # or by an Earlycanceler
-        eval_result.canceled_by_user = True
+                eval_result.was_pruned = True
+                eval_result.pruned_by_nan = True
+    except PruneEvaluation:
+        # If objective function raises this error, the evaluation will be treated as being pruned
+        eval_result.was_pruned = True
+        # we may need the information if the pruneation was done by the user inside the objective function
+        # or by an Earlypruner
+        eval_result.pruned_by_user = True
     return eval_result
 
 
@@ -335,7 +335,7 @@ class TaskManager:
     def shutdown(self):
         self._backend_task_executor.shutdown(wait=False)
 
-    def submit(self, objective_function, candidate, param_info, canceler, kwargs):
+    def submit(self, objective_function, candidate, param_info, pruner, kwargs):
         gpu_arg = None
         if self._gpu_allocator is not None:
             # GPU Mode -> Get a free GPU
@@ -344,7 +344,7 @@ class TaskManager:
             execute,
             objective_function,
             candidate,
-            canceler,
+            pruner,
             kwargs,
             True,  # remote = True
             gpu_arg,

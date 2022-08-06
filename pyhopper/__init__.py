@@ -13,12 +13,10 @@
 # limitations under the License.
 
 
-from __future__ import absolute_import
-
-import pyhopper.cancelers as cancelers
+import pyhopper.pruners as pruners
 import pyhopper.callbacks as callbacks
 from pyhopper.parameters import Parameter as Parameter
-from pyhopper.parallel import CancelEvaluation as CancelEvaluation
+from pyhopper.parallel import PruneEvaluation as PruneEvaluation
 from pyhopper.search import Search as Search
 from pyhopper.search import register_float as float
 from pyhopper.search import register_int as int

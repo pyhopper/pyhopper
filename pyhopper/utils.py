@@ -27,13 +27,13 @@ class ParamInfo:
 
         ``finished_at``  UNIX epoch timestamp when the evaluation of the candidate was finished.
 
-        ``is_canceled``  Bool indicating if the candidate was cancelled.
+        ``is_pruned``  Bool indicating if the candidate was pruned.
     """
 
     type = None
     sampled_at = None
     finished_at = None
-    is_canceled = False
+    is_pruned = False
 
     def __init__(self, candidate_type, sampled_at):
         self.type = candidate_type

@@ -1,4 +1,4 @@
-# Copyright 2021 Mathias Lechner and the PyHopper team
+# Copyright 2022 Mathias Lechner and the PyHopper team
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,8 +13,6 @@
 # limitations under the License.
 
 
-from __future__ import absolute_import
-
-from pyhopper.cancelers.early_cancelers import TopKCanceler as TopKCanceler
-from pyhopper.cancelers.early_cancelers import QuantileCanceler as QuantileCanceler
-from pyhopper.cancelers.early_cancelers import EarlyCanceler as EarlyCanceler
+from pyhopper.pruners.pruners import TopKPruner as TopKPruner
+from pyhopper.pruners.pruners import QuantilePruner as QuantilePruner
+from pyhopper.pruners.pruners import Pruner as Pruner
