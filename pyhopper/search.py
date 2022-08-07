@@ -484,8 +484,43 @@ class Search:
         keep_history=True,
     ):
         """
+        :param objective_function: The objective function that should be optimized. Can be a generator function
+        that yields estimates of the true objective function to prune unpromising candidates early on.
+        :param timeout: Search timeout in seconds or a string, e.g., "1h 30min", "4d 12h".
+        :param max_steps: Number of search steps. Must be left None if a value for `timeout` is provided.
+        :param endless_mode: Setting this argument to True runs the search until the user interrupts (via CTRL+C).
+        Must be left Noen if a value for `timeout` or `max_steps` is provided
+        :param seeding_steps:
+        :param seeding_timeout:
+        :param seeding_ratio:
+        :param pruner: A `pyhopper.pruners.Pruner` instance that cancels the evaluation of unpromising candidates.
+        If a pruner is provided, the objective function must be a generator that yield intermediate estimates of the
+        objective value.
+        :param n_jobs: Number of parallel execution process. `n_jobs=-1` spawns a process for each CPU core,
+        `n_jobs="per-gpu"` spawns a process for each GPU (and sets the visibility of the GPU in the environment variables accordingly).
+        :param quiet: If True, then a progress bar is shown during the search and a short summary at the end.
+        :param ignore_nans: If True, NaN (not-a-number) values returned by the objective function will be ignored
+        (parameters will be treated the same as pruned parameter values). If False (default), NaN values returned by the
+        objective function will raise an exception (this might be important for finding bugs in the objective function)
+        :param mp_backend:
+        :param enable_rejection_cache: If True (default), generated parameter candidates will be filtered by removing
+         duplicates (= don't evaluate a parameter if the same parameter has been already evaluated before).
+         If False, no such check/filtering is performed.
+        :param callbacks: A list of `pyhopper.callbacks.Callback` instances that will be called throughout the search.
+        :param start_temperature:
+        :param end_temperature:
+        :param kwargs: A dict that will be passed to the objective function as named arguments.
+        :param checkpoint_path: A file or directory for storing the intermediate state of the search.
+        If `checkpoint_path` is an existing directory, Pyhopper will save the state in a new file "pyhopper_run_XXXXX.ckpt".
+        :param overwrite_checkpoint:  If True, the file provided by the `checkpoint_path` argument will be overwritten if it already exists.
+        If False (default), Pyhopper will try to restore and continue the search from the checkpoint provided by the `checkpoint_path`.
+        If the file provided in the `checkpoint_path` argument does not exist, this argument will be ignored.
+        :param keep_history: If True (default), the all evaluated candidate parameters and correspondign objective values
+        will be stored in the `pyhopper.Search.history` property.
+        If False, no such history is created (this might save some memory).
         :param direction: String defining if the objective function should be minimized or maximize
             (admissible values are 'min','minimize', or 'max','maximize')
+        :return: A `dict` containing the best found parameters
         """
         if kwargs is None:
             kwargs = {}
