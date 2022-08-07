@@ -45,7 +45,7 @@ outputs
 
 .. note::
 
-    Setting :code:`quiet=False` (which is default) prints a progress bar during the search and a short summary at the end of the search.
+    Removing :code:`quiet=True` prints a progress bar during the search and a short summary at the end.
 
 
 -----------------------------
@@ -55,7 +55,7 @@ Hyperparameter types
 As shown above, PyHopper has three built-in template types: :meth:`int`, :meth:`float`, and :meth:`choice` (see :ref:`API docs<parameters>`).
 
 :meth:`pyhopper.int` requires a lower and an upper bound (inclusive bounds) defining the range of the search space.
-Optionally, we can provide an initial *guess* for the parameter via the `init` argument. Moreover, as Nvidia's TensorCores require certain parameters to be a `multiple of 8 or power of 2 <https://developer.nvidia.com/blog/optimizing-gpu-performance-tensor-cores/>`_, we can constraint the parameter to such values.
+Optionally, we can provide an initial *guess* for the parameter via the `init` argument. We can also constrain the parameter to be a multiple of something or a power of 2 (which may be required by certain `neural network acceleration hardware<https://developer.nvidia.com/blog/optimizing-gpu-performance-tensor-cores/>`_).
 For instance,
 
 .. code-block:: python
