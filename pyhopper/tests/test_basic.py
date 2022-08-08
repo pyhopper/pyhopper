@@ -67,7 +67,7 @@ def test_kwargs():
         c="hello",
     )
 
-    r1 = search.run(of_kwargs, direction="max", max_steps=10)
+    r1 = search.run(of_kwargs, direction="max", steps=10)
     assert "a" in r1.keys()
     assert "b" in r1.keys()
     assert "c" in r1.keys()
@@ -80,7 +80,7 @@ def test_merge():
         c="hello",
     )
 
-    r1 = search.run(of_kwargs, direction="max", max_steps=10)
+    r1 = search.run(of_kwargs, direction="max", steps=10)
     assert "a" in r1.keys()
     assert "b" in r1.keys()
     assert "c" in r1.keys()
@@ -114,8 +114,8 @@ def test_simple1():
         }
     )
 
-    r1 = search.run(of, direction="max", max_steps=10)
-    r2 = search.run(of, direction="max", max_steps=50, kwargs={"x": 1})
+    r1 = search.run(of, direction="max", steps=10)
+    r2 = search.run(of, direction="max", steps=50, kwargs={"x": 1})
     assert "lr" in r1.keys()
     assert "lr" in r2.keys()
 
@@ -130,7 +130,7 @@ def of_array(param, x=None):
 def test_nparray():
     search = pyhopper.Search({"lr": pyhopper.float(lb=-10, ub=10, shape=(10, 10))})
 
-    param = search.run(of_array, direction="max", max_steps=20)
+    param = search.run(of_array, direction="max", steps=20)
     assert "lr" in param.keys()
     assert np.all(param["lr"] >= -10)
     assert np.all(param["lr"] <= 10)
@@ -154,7 +154,7 @@ def test_float_register():
             "lr6": pyhopper.float(1),
         }
     )
-    r1 = search.run(ofall, direction="max", max_steps=10)
+    r1 = search.run(ofall, direction="max", steps=10)
     assert "lr" in r1.keys()
     assert "lr2" in r1.keys()
     assert "lr3" in r1.keys()
@@ -190,7 +190,7 @@ def test_int_register():
             "mul8_t": pyhopper.int(8, 128, multiple_of=8),
         }
     )
-    r1 = search.run(ofall, direction="max", seeding_steps=5, max_steps=10)
+    r1 = search.run(ofall, direction="max", seeding_steps=5, steps=10)
     assert "lr" in r1.keys()
     assert "lr2" in r1.keys()
     assert "lr3" in r1.keys()
@@ -212,7 +212,7 @@ def test_choice_register():
         }
     )
     # r1 = search.run(of, seeding_timeout="1h", timeout="1s", n_jobs=2)
-    r1 = search.run(of, direction="max", seeding_timeout="1h", max_steps=10, n_jobs=5)
+    r1 = search.run(of, direction="max", seeding_timeout="1h", steps=10, n_jobs=5)
     assert "lr" in r1.keys()
 
 
@@ -228,7 +228,7 @@ def test_parallelization():
         }
     )
     start = time.time()
-    r1 = search.run(of, direction="max", seeding_timeout="1h", max_steps=10, n_jobs=5)
+    r1 = search.run(of, direction="max", seeding_timeout="1h", steps=10, n_jobs=5)
     assert time.time() - start < 3
 
 
@@ -255,9 +255,7 @@ def test_float_constraints():
             "g1": pyhopper.float(1e-6, 1e-3, log=True, precision=1),
         }
     )
-    r1 = search.run(
-        check_constraints_of, direction="min", max_steps=50, seeding_steps=30
-    )
+    r1 = search.run(check_constraints_of, direction="min", steps=50, seeding_steps=30)
 
 
 def of_freeze1(param):
@@ -288,12 +286,12 @@ def test_freeze():
     )
     search["a"] = search.best["a"]
 
-    search.run(of_freeze1, direction="max", max_steps=15, seeding_steps=10)
+    search.run(of_freeze1, direction="max", steps=15, seeding_steps=10)
     search["a"] = -20
-    search.run(of_freeze2, direction="max", max_steps=15, seeding_steps=10)
+    search.run(of_freeze2, direction="max", steps=15, seeding_steps=10)
     search["a"] = 20
-    search.run(of_freeze3, direction="max", max_steps=15, seeding_steps=10)
-    search.run(of_freeze4, direction="max", max_steps=15, seeding_steps=10)
+    search.run(of_freeze3, direction="max", steps=15, seeding_steps=10)
+    search.run(of_freeze4, direction="max", steps=15, seeding_steps=10)
 
 
 def of_add(param):
@@ -309,7 +307,7 @@ def test_add_m():
     )
     search += {"b": 2}
     search.sweep("a", [2, 5])
-    search.run(of_add, direction="max", max_steps=15, seeding_steps=10)
+    search.run(of_add, direction="max", steps=15, seeding_steps=10)
 
 
 def of_set(param):
@@ -325,7 +323,7 @@ def test_add_m():
         }
     )
     search["a"] = 3
-    search.run(of_set, direction="max", max_steps=15, seeding_steps=10)
+    search.run(of_set, direction="max", steps=15, seeding_steps=10)
 
 
 if __name__ == "__main__":

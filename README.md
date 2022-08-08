@@ -55,7 +55,7 @@ For more info, check out [PyHopper's documentation](https://pyhopper.readthedocs
 - ```pyhopper.cancelers.Canceler``` have been renamed to ```pyhopper.pruners.Pruner``` to avoid misspellings between cance**ll**er and cance**l**er.
 - Endless mode must be explicitly enabled by ```search.run(endless_mode=True, ...)```. Calling run without providing the ```timeout```, ```max_steps```, or ```endless_mode``` results in an error.
 - The ```Search.add``` method has been renamed to ```Search.enqueue``` to avoid confusion between adding parameters to the search space and adding guessed candidates to the search queue. The ```+=``` operator can still be used to enqueue candidates. For instance, ```search += {'lr': 0.01}```. 
-
+- Renamed ```max_steps``` argument of ```search.run()``` to ```steps``` to avoid connotation of "max" with "maximize" 
 
 Copyright ©2018-2022. Mathias Lechner  
 Copyright ©2018-2021. Institute of Science and Technology Austria (IST Austria)  

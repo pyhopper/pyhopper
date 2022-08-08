@@ -33,7 +33,7 @@ def test_manual():
     search += {"lr": 0.2}
     search += {"lr": 0.3}
 
-    r1 = search.run(of, direction="max", max_steps=3)
+    r1 = search.run(of, direction="max", steps=3)
     assert "lr" in r1.keys()
 
 
@@ -47,14 +47,14 @@ def test_checkpoint():
     checkpoint_path = "/tmp/ph.test"
     if os.path.isfile(checkpoint_path):
         os.remove(checkpoint_path)
-    r1 = search.run(of, direction="max", max_steps=3, checkpoint_path=checkpoint_path)
+    r1 = search.run(of, direction="max", steps=3, checkpoint_path=checkpoint_path)
     assert "lr" in r1.keys()
     ckpt = load_dict(checkpoint_path)
     assert ckpt["history"]["log_candidate"][0]["lr"] == 0.1
     assert ckpt["history"]["log_candidate"][1]["lr"] == 0.2
     assert ckpt["history"]["log_candidate"][2]["lr"] == 0.3
 
-    r1 = search.run(of, direction="max", max_steps=3, checkpoint_path=checkpoint_path)
+    r1 = search.run(of, direction="max", steps=3, checkpoint_path=checkpoint_path)
     assert len(search.history._log_candidate) == 6
     os.remove(checkpoint_path)
 

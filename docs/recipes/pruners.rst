@@ -23,7 +23,7 @@ In particular, PyHopper supports Python generators functions as objective functi
             "x": pyhopper.float(),
         }
     )
-    search.run(dummy_of, max_steps=5, quiet=True)
+    search.run(dummy_of, steps=5, quiet=True)
 
 By default PyHopper uses the **last item** of the iterator as objective score and ignores the values yielded before.
 However, the values yielded before can be used for detecting and consequently discontinuing unpromising evaluations.
@@ -50,7 +50,7 @@ For example
             "x": pyhopper.float(),
         }
     )
-    search.run(generator_of, max_steps=50, pruner=pyhopper.pruners.QuantilePruner(0.8))
+    search.run(generator_of, steps=50, pruner=pyhopper.pruners.QuantilePruner(0.8))
 
 .. code-block:: text
 
@@ -84,7 +84,7 @@ For convenience, the :meth:`pyhopper.wrap_n_times` wrapper function accepts an o
     )
     search.run(
         pyhopper.wrap_n_times(noisy_objective, n=5, yield_after=0),
-        max_steps=50,
+        steps=50,
         pruner=pyhopper.pruners.QuantilePruner(0.8),
     )
 
@@ -132,7 +132,7 @@ To manually prune a running evaluation we can raise a :meth:`pyhopper.PruneEvalu
             "x": pyhopper.float(),
         }
     )
-    search.run(generator_of, max_steps=50)
+    search.run(generator_of, steps=50)
 
 .. code-block:: text
 

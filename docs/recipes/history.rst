@@ -30,7 +30,7 @@ Pyhopper keeps track of all evaluated candidates in the :attr:`pyhopper.Search.h
             "y": pyhopper.float(-10, 10),
         },
     )
-    search.run(objective, direction="max", seeding_steps=10, max_steps=50)
+    search.run(objective, direction="max", seeding_steps=10, steps=50)
 
     # Let's plot the sampled parameters as the 2D objective surface
     fig, ax = plt.subplots(figsize=(5, 5))

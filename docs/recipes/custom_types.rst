@@ -29,7 +29,7 @@ An example of both options for :code:`torch.Tensor` type parameters is
             "torch_param": TorchParameter(size=(2, 2)),
         }
     )
-    search.run(dummy_of, max_steps=5, quiet=True)
+    search.run(dummy_of, steps=5, quiet=True)
 
 .. code-block:: text
 
@@ -55,7 +55,7 @@ Alternatively, we can use the :meth:`pyhopper.custom` parameter template and pas
             "other_option": pyhopper.custom(seeding_fn, mutation_fn),
         }
     )
-    search.run(dummy_of, max_steps=5, quiet=True)
+    search.run(dummy_of, steps=5, quiet=True)
 
 .. code-block:: text
 

@@ -31,7 +31,7 @@ This additional argument can then be used to perform the training-validation spl
     )
     search.run(
         pyhopper.wrap_n_times(noisy_objective, n=3, yield_after=0, pass_index_arg=True),
-        max_steps=3,
+        steps=3,
         canceller=pyhopper.pruners.QuantilePruner(0.8),
         quiet=True,
     )

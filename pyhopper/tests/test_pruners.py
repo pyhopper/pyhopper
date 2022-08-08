@@ -33,7 +33,7 @@ def test_simple_inc_dec():
         }
     )
 
-    r1 = search.run(of_inc, direction="max", max_steps=10)
+    r1 = search.run(of_inc, direction="max", steps=10)
     assert of_inc(r1) >= 4
     search = pyhopper.Search(
         {
@@ -42,7 +42,7 @@ def test_simple_inc_dec():
         }
     )
 
-    r1 = search.run(of_inc, direction="min", max_steps=10)
+    r1 = search.run(of_inc, direction="min", steps=10)
     assert of_inc(r1) <= 4
 
 
@@ -61,14 +61,14 @@ def test_simple1():
         }
     )
 
-    r1 = search.run(of, direction="max", max_steps=10)
+    r1 = search.run(of, direction="max", steps=10)
     r1 = search.run(
-        of, direction="max", max_steps=100, pruner=pyhopper.pruners.TopKPruner(5)
+        of, direction="max", steps=100, pruner=pyhopper.pruners.TopKPruner(5)
     )
     r1 = search.run(
         of,
         direction="max",
-        max_steps=200,
+        steps=200,
         n_jobs=5,
         pruner=pyhopper.pruners.TopKPruner(5),
     )
@@ -86,24 +86,24 @@ def test_simple2():
 
     with pytest.raises(ValueError):
         search = pyhopper.Search({"lr": pyhopper.float(-1)})
-    r1 = search.run(of, direction="max", max_steps=10)
+    r1 = search.run(of, direction="max", steps=10)
     r1 = search.run(
         of,
         direction="max",
-        max_steps=100,
+        steps=100,
         pruner=pyhopper.pruners.QuantilePruner(50),
     )
     r1 = search.run(
         of,
         direction="max",
-        max_steps=100,
+        steps=100,
         n_jobs=5,
         pruner=pyhopper.pruners.QuantilePruner(90),
     )
     r1 = search.run(
         of,
         direction="max",
-        max_steps=100,
+        steps=100,
         pruner=pyhopper.pruners.QuantilePruner(0.5),
     )
 
@@ -128,7 +128,7 @@ def test_exception1():
             )
         }
     )
-    r1 = search.run(of_prune_first, direction="max", max_steps=10)
+    r1 = search.run(of_prune_first, direction="max", steps=10)
     assert "lr" in r1.keys()
 
 
@@ -153,23 +153,23 @@ def test_nan():
     )
     with pytest.raises(ValueError):
         of_counter = 0
-        r1 = search.run(of_nan, direction="max", max_steps=10)
+        r1 = search.run(of_nan, direction="max", steps=10)
     of_counter = 0
-    r1 = search.run(of_nan, direction="max", ignore_nans=True, max_steps=10)
+    r1 = search.run(of_nan, direction="max", ignore_nans=True, steps=10)
     with pytest.raises(ValueError):
         of_counter = 0
         r1 = search.run(
             of_nan,
             direction="max",
             ignore_nans=True,
-            max_steps=100,
+            steps=100,
             pruner=pyhopper.pruners.QuantilePruner(0.5),
         )
     with pytest.raises(ValueError):
         of_counter = 0
-        r1 = search.run(of_nan, direction="max", max_steps=200, n_jobs=5)
+        r1 = search.run(of_nan, direction="max", steps=200, n_jobs=5)
     of_counter = 0
-    r1 = search.run(of_nan, direction="max", ignore_nans=True, n_jobs=5, max_steps=300)
+    r1 = search.run(of_nan, direction="max", ignore_nans=True, n_jobs=5, steps=300)
     of_counter = 0
     assert "lr" in r1.keys()
 
@@ -193,9 +193,9 @@ def test_nan_simple():
         }
     )
     of_counter = 0
-    r1 = search.run(of_nan, direction="max", ignore_nans=True, max_steps=10)
+    r1 = search.run(of_nan, direction="max", ignore_nans=True, steps=10)
     of_counter = 0
-    r1 = search.run(of_nan2, direction="max", ignore_nans=True, n_jobs=5, max_steps=200)
+    r1 = search.run(of_nan2, direction="max", ignore_nans=True, n_jobs=5, steps=200)
 
 
 def test_topk():

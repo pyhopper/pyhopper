@@ -27,7 +27,7 @@ For example
             "my_choice": pyhopper.choice(["adam","rmsprop","sgd"]),
         }
     )
-    search.run(dummy_objective,"maximize",max_steps=5,quiet=True)
+    search.run(dummy_objective,"maximize",steps=5,quiet=True)
 
 outputs
 
@@ -55,7 +55,7 @@ Hyperparameter types
 As shown above, PyHopper has three built-in template types: :meth:`int`, :meth:`float`, and :meth:`choice` (see :ref:`API docs<parameters>`).
 
 :meth:`pyhopper.int` requires a lower and an upper bound (inclusive bounds) defining the range of the search space.
-Optionally, we can provide an initial *guess* for the parameter via the `init` argument. We can also constrain the parameter to be a multiple of something or a power of 2 (which may be required by certain `neural network acceleration hardware<https://developer.nvidia.com/blog/optimizing-gpu-performance-tensor-cores/>`_).
+Optionally, we can provide an initial *guess* for the parameter via the `init` argument. We can also constrain the parameter to be a multiple of something or a power of 2 (which may be required by certain `neural network acceleration hardware <https://developer.nvidia.com/blog/optimizing-gpu-performance-tensor-cores/>`_).
 For instance,
 
 .. code-block:: python
@@ -183,11 +183,11 @@ For instance,
    search = pyhopper.Search({"x": pyhopper.float(0, 1)})
 
    start = time.time()
-   search.run(of, max_steps=20, quiet=True)
+   search.run(of, steps=20, quiet=True)
    print(f"n_jobs=1 took {time.time()-start:0.2f} seconds")
 
    start = time.time()
-   search.run(of, max_steps=20, quiet=True, n_jobs=4)
+   search.run(of, steps=20, quiet=True, n_jobs=4)
    print(f"n_jobs=4 took {time.time()-start:0.2f} seconds")
 
 .. code-block:: text
@@ -319,7 +319,7 @@ Instead, we can *prune* the candidate.
     search.run(
         pyhopper.wrap_n_times(noisy_objective,3),
         "maximize",
-        max_steps=50,
+        steps=50,
         pruner = pyhopper.pruners.QuantilePruner(0.8) # discontinue candidates if they are in the bottom 80%
     )
 
@@ -354,13 +354,18 @@ We can, for instance, use this history to examine or visualize the search space.
     )
     search.run(...)
 
-    fig, ax = plt.subplots(figsize=(5, 5))
+    fig, ax = plt.subplots(figsize=(4, 3))
     b = ax.scatter(
         x=search.history["lr"],
         y=search.history.fs,
     )
     ax.set_xlabel("Sampled 'lr' parameter")
     ax.set_ylabel("Objective value")
+    ax.set_xscale("log")
     plt.show(fig)
+
+.. figure:: img/quickstart_plot.png
+    :align: center
+
 
 For further details see See :ref:`history-label`.

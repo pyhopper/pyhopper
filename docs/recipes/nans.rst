@@ -21,8 +21,8 @@ This way PyHopper will ignore any NaN returned by the objective function and dis
 
     search = pyhopper.Search({"x":pyhopper.float(0,1)})
 
-    search.run(of,"max",max_steps=10)                  # raises a ValueError
-    search.run(of,"max",max_steps=10,ignore_nans=True) # works fine
+    search.run(of,"max",steps=10)                  # raises a ValueError
+    search.run(of,"max",steps=10,ignore_nans=True) # works fine
 
 Numerical instabilities can also result in **exceptions** raise by some code inside the objective function.
 
@@ -38,7 +38,7 @@ Numerical instabilities can also result in **exceptions** raise by some code ins
 
     search = pyhopper.Search({"x":pyhopper.float(0,1)})
 
-    search.run(of,"max",max_steps=10)
+    search.run(of,"max",steps=10)
 
 .. note::
 

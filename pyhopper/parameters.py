@@ -155,7 +155,7 @@ class PowerOfIntParameter(IntParameter):
             new_value = self._sampling_strategy()
         else:
             new_value = self._log_param.sample()
-            new_value = 2 ** new_value
+            new_value = 2**new_value
         new_value = self._round_to_multiple_of(new_value)
 
         if self._lb is not None or self._ub is not None:
@@ -174,7 +174,7 @@ class PowerOfIntParameter(IntParameter):
             log_value = cast_to_int(np.log2(value))
             new_value = self._log_param.mutate(log_value, temperature)
             # breakpoint()
-            new_value = 2 ** new_value
+            new_value = 2**new_value
         new_value = self._round_to_multiple_of(new_value)
 
         if self._lb is not None or self._ub is not None:

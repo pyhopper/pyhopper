@@ -28,7 +28,7 @@ import time
 class ScheduledRun:
     def __init__(
         self,
-        max_steps=None,
+        step_limit=None,
         timeout=None,
         endless_mode=False,
         seeding_steps=None,
@@ -37,19 +37,19 @@ class ScheduledRun:
         start_temperature=1.0,
         end_temperature=0.0,
     ):
-        if max_steps is None and timeout is None and endless_mode is False:
+        if step_limit is None and timeout is None and endless_mode is False:
             raise ValueError(
                 "Must specify either 'max_steps', 'timeout', or 'endless_mode'"
             )
-        if (max_steps is not None or timeout is not None) and endless_mode:
+        if (step_limit is not None or timeout is not None) and endless_mode:
             raise ValueError(
                 "Cannot specify both 'endless_mode' and 'max_steps'/'timeout' at the same time.'"
             )
-        if max_steps is not None and timeout is not None:
+        if step_limit is not None and timeout is not None:
             raise ValueError(
                 "Cannot specify both 'max_steps' and 'timeout' at the same time, one of the two must be None"
             )
-        self._step_limit = max_steps
+        self._step_limit = step_limit
         self._endless_mode = endless_mode
         self._timeout = None
         if timeout is not None:
@@ -68,20 +68,20 @@ class ScheduledRun:
             )
 
         self._seeding_timeout = None
-        self._seeding_max_steps = None
+        self._seeding_step_limit = None
 
         if seeding_timeout is None and seeding_steps is None:
             # seeding_ratio is only valid if no other argument was set
             if self._step_limit is not None:
                 # Max steps mode with seeding ratio provided
-                self._seeding_max_steps = int(seeding_ratio * max_steps)
+                self._seeding_step_limit = int(seeding_ratio * step_limit)
             elif self._timeout is not None:
                 # Timeout mode with seeding ratio provided
                 self._seeding_timeout = seeding_ratio * self._timeout
         else:
             if seeding_timeout is not None:
                 self._seeding_timeout = parse_timeout(seeding_timeout)
-            self._seeding_max_steps = seeding_steps
+            self._seeding_step_limit = seeding_steps
         self._seeding_ratio = seeding_ratio  # only needed for endless mode
 
         self._temp_start = None
@@ -127,12 +127,12 @@ class ScheduledRun:
 
     def is_in_seeding_mode(self):
 
-        if self._seeding_max_steps is not None:
+        if self._seeding_step_limit is not None:
             # step-scheduled mode
-            return self._step >= self._seeding_max_steps
+            return self._step < self._seeding_step_limit
         elif self._seeding_timeout is not None:
             # time-scheduled mode
-            return time.time() - self._start_time >= self._seeding_timeout
+            return time.time() - self._start_time < self._seeding_timeout
         elif self.is_endless_mode:
             return np.random.default_rng().random() < self.endless_seeding_ratio
         else:

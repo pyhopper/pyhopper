@@ -20,7 +20,7 @@ If :code:`shape` is a tuple of integers the created parameter values will be of 
             "2d": pyhopper.float(-1, 1, shape=(2, 2)),
         }
     )
-    search.run(dummy_of, max_steps=3, quiet=True)
+    search.run(dummy_of, steps=3, quiet=True)
 
 produces
 
@@ -41,7 +41,7 @@ Same works for integers and in combination with constraints
             "2d_int": pyhopper.int(0, 20, shape=(2, 2), multiple_of=5),
         }
     )
-    search.run(dummy_of, max_steps=3, quiet=True)
+    search.run(dummy_of, steps=3, quiet=True)
 
 .. code-block:: text
 

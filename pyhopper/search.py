@@ -464,7 +464,7 @@ class Search:
         objective_function,
         direction: str = "maximize",
         timeout: Union[int, float, str, None] = None,
-        max_steps: Union[int, str, None] = None,
+        steps: Union[int, str, None] = None,
         endless_mode: bool = False,
         seeding_steps: Optional[int] = None,
         seeding_timeout: Union[int, float, str, None] = None,
@@ -487,9 +487,9 @@ class Search:
         :param objective_function: The objective function that should be optimized. Can be a generator function
         that yields estimates of the true objective function to prune unpromising candidates early on.
         :param timeout: Search timeout in seconds or a string, e.g., "1h 30min", "4d 12h".
-        :param max_steps: Number of search steps. Must be left None if a value for `timeout` is provided.
+        :param steps: Number of search steps. Must be left None if a value for `timeout` is provided.
         :param endless_mode: Setting this argument to True runs the search until the user interrupts (via CTRL+C).
-        Must be left Noen if a value for `timeout` or `max_steps` is provided
+        Must be left Noen if a value for `timeout` or `steps` is provided
         :param seeding_steps:
         :param seeding_timeout:
         :param seeding_ratio:
@@ -526,7 +526,7 @@ class Search:
             kwargs = {}
 
         schedule = ScheduledRun(
-            max_steps,
+            steps,
             timeout,
             endless_mode,
             seeding_steps=seeding_steps,

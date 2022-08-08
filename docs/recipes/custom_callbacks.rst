@@ -57,7 +57,7 @@ For instance,
     r1 = search.run(
         of,
         "max",
-        max_steps=3,
+        steps=3,
         quiet=True,
         callbacks=[MyCallback()],
     )

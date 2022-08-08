@@ -29,7 +29,7 @@ The :code:`mutation_strategy` is called with the current best parameter value as
             ),
         }
     )
-    search.run(dummy_of, max_steps=3, quiet=True)
+    search.run(dummy_of, steps=3, quiet=True)
 
 .. code-block:: text
 
@@ -52,7 +52,7 @@ Note that the temperature might not be strictly decreasing as PyHopper has some 
             "gauss": pyhopper.float(-1, 1, mutation_strategy=mutation_with_temp),
         }
     )
-    search.run(dummy_of, max_steps=5, quiet=True)
+    search.run(dummy_of, steps=5, quiet=True)
 
 .. code-block:: text
 
