@@ -145,7 +145,8 @@ def register_float(
     lb: Optional[Union[int, float, np.ndarray]] = None,
     ub: Optional[Union[int, float, np.ndarray]] = None,
     init: Optional[Union[int, float, np.ndarray]] = None,
-    log: Union[bool] = False,
+    fmt: Optional[str] = None,
+    log: Union[bool] = None,
     precision: Optional[int] = None,
     shape: Optional[Union[int, Tuple]] = None,
     mutation_fn: Optional[FunctionType] = None,
@@ -156,6 +157,9 @@ def register_float(
     :param lb: Lower bound of the parameter. If both `lb` and `ub` are None, this parameter will be unbounded (usually not recommended).
     :param ub: Upper bound of the parameter. If None, the `lb` argument will be used as upper bound with a lower bound of 0.
     :param init: Initial value of the parameter. If None it will be randomly sampled
+    :param fmt: Format string as syntactic sugar for setting both log and precision.
+        fmt="0.2f" refers to parameter with linear search space and 2 decimal digts precision.
+        fmt="0.1g" refers to a parameter with logarithmic search space and 1 significant digit precision
     :param shape: For NumPy array type parameters, this argument must be set to a tuple containing the shape of the np.ndarray
     :param log: Whether to use logarithmic or linearly scaling of the parameter.
         Defaults to False which searches the space linearly.
@@ -167,6 +171,23 @@ def register_float(
     :param seeding_fn: Setting this argument to a callable overwrites the default random seeding strategy
     """
     lb, ub = sanitize_bounds(lb, ub)
+    if log is not None and fmt is not None:
+        raise ValueError(f"Cannot specify `log` and `fmt` at the same time.")
+    if precision is not None and fmt is not None:
+        raise ValueError(f"Cannot specify `log` and `fmt` at the same time.")
+
+    if fmt is not None:
+        if fmt.endswith("g"):
+            log = True
+        fmt = (
+            fmt.replace(":", "")
+            .replace("0", "")
+            .replace(".", "")
+            .replace("g", "")
+            .replace("f", "")
+        )
+        precision = int(fmt)
+
     if log and (lb is None or ub is None):
         raise ValueError(
             "Logarithmically distributed mode without bounds is not supported. Please specify lower and upper bound."
@@ -277,6 +298,7 @@ class Search:
     def enqueue(self, candidate: dict) -> None:
         """
         Queues a guess for the optimal parameters to the search queue.
+
         :param candidate: dict representing a subset of the parameters assigned to a value
         """
         added_candidate = {}
@@ -483,21 +505,21 @@ class Search:
         overwrite_checkpoint=False,
         keep_history=True,
     ):
-        """
-        :param objective_function: The objective function that should be optimized. Can be a generator function
-        that yields estimates of the true objective function to prune unpromising candidates early on.
+        """Starts the hyperparameter tuning process.
+
+        :param objective_function: The objective function that should be optimized.
+            Can be a generator function that yields estimates of the true objective function to prune unpromising candidates early on.
         :param timeout: Search timeout in seconds or a string, e.g., "1h 30min", "4d 12h".
         :param steps: Number of search steps. Must be left None if a value for `timeout` is provided.
-        :param endless_mode: Setting this argument to True runs the search until the user interrupts (via CTRL+C).
-        Must be left Noen if a value for `timeout` or `steps` is provided
+        :param endless_mode: Setting this argument to True runs the search until the user interrupts (via CTRL+C). Must be left Noen if a value for `timeout` or `steps` is provided
         :param seeding_steps:
         :param seeding_timeout:
         :param seeding_ratio:
         :param pruner: A `pyhopper.pruners.Pruner` instance that cancels the evaluation of unpromising candidates.
-        If a pruner is provided, the objective function must be a generator that yield intermediate estimates of the
-        objective value.
+            If a pruner is provided, the objective function must be a generator that yield intermediate estimates of the
+            objective value.
         :param n_jobs: Number of parallel execution process. `n_jobs=-1` spawns a process for each CPU core,
-        `n_jobs="per-gpu"` spawns a process for each GPU (and sets the visibility of the GPU in the environment variables accordingly).
+            `n_jobs="per-gpu"` spawns a process for each GPU (and sets the visibility of the GPU in the environment variables accordingly).
         :param quiet: If True, then a progress bar is shown during the search and a short summary at the end.
         :param ignore_nans: If True, NaN (not-a-number) values returned by the objective function will be ignored
         (parameters will be treated the same as pruned parameter values). If False (default), NaN values returned by the

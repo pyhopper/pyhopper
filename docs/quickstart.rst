@@ -131,6 +131,10 @@ To limit the precision, we can use the :code:`precision` argument.
     > {'dropout': 0.13, 'lr': 0.0001}
     > {'dropout': 0.20, 'lr': 0.0009}
 
+.. note::
+
+    The `precision` and `log` arguments can also be set via the `fmt` (format string) argument. For instance, `fmt="0.2f"`` is short for `log=False, precision=2`, and `fmt="0.1g"` is short for `log=True, precision=1`.
+
 
 :meth:`pyhopper.choice` requires a :code:`list` of possible values for this hyperparameter.
 Similar to before, we can provide an initial guess.
@@ -258,7 +262,9 @@ We can automatically save the search progress in a checkpoint file, so if the pr
     search.run(
         objective, "minimize", "12h",
         checkpoint_path = "my_checkpoint.ckpt"
-    )
+
+    search.save("run_completed.ckpt")
+    # search.load("run_completed.ckpt")
 
 If the file ``checkpoint_path`` already exists, Pyhopper is try to load it and resume the remaining search.
 At the end of the search, the file will **not** be deleted and we can use it extend the search, for instance, running it for another day if we are not satisfied with the results.  
