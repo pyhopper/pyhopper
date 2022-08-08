@@ -210,9 +210,65 @@ Consequently, we can write standard PyTorch and TensorFlow code in the objective
    n_jobs = -1           # A worker for each CPU core
 
 
---------------------------------
+
+-----------------------------
+A putting things together
+-----------------------------
+
+Putting everything together, a typical hyperparameter tuning code may look something like this
+
+.. code-block:: python
+
+    import pyhopper
+
+    def my_objective(param: dict) -> float:
+        # Add code here
+        return val_acc
+
+    search = pyhopper.Search(
+        {
+            "epochs": 20,
+            "num_layers": pyhopper.int(1, 8, init=4),
+            "batch_size": pyhopper.int(32, 512, multiple_of=32),
+            "dropout": pyhopper.float(0, 0.5, precision=1),
+            "lr": pyhopper.float(1e-5, 1e-2, log=True, precision=1),
+            "opt": pyhopper.choice(["adam", "rmsprop", "sgd"], init="adam"),
+            "weight_decay": pyhopper.choice([0, 1e-5, 1e-4, 1e-3], is_ordinal=True),
+        }
+    )
+    search.run(my_objective, "max", "4h", n_jobs="per-gpu")
+
+
+-----------------------------
+Further topics
+-----------------------------
+
+The following topics give us some peak into the capabilities of Pyhopper.
+
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Checkpointing
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+We can automatically save the search progress in a checkpoint file, so if the process is interrupted (for instance by the shutdown of a pre-emptive cloud instance) we can resume the process where it left off. 
+
+.. code-block:: python
+
+    search = pyhopper.Search( ... )
+
+    search.run(
+        objective, "minimize", "12h",
+        checkpoint_path = "my_checkpoint.ckpt"
+    )
+
+If the file ``checkpoint_path`` already exists, Pyhopper is try to load it and resume the remaining search.
+At the end of the search, the file will **not** be deleted and we can use it extend the search, for instance, running it for another day if we are not satisfied with the results.  
+
+For further details see :ref:`checkpointing-label`
+
+
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Dealing with a noisy objective
---------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Training a neural network is an inherently stochastic process. Randomness from the weight initialization has a strong influence on the final accuracy.
 In the context of a hyperparameter search, it may happen that a non-optimal parameter candidate achieves a high accuracy by simply having *luck* with the initial weights used for its evaluation.
@@ -245,31 +301,66 @@ For exactly this reason, PyHopper provides the :meth:`pyhopper.wrap_n_times` fun
 .. note::
 
     To reduce the computational cost of evaluating each candidate multiple times, PyHopper allows cancelling candidates if
-    their first evaluation shows that they have only a small chance of becoming the best hyperparameters. See :ref:`canceling-label` for more details.
+    their first evaluation shows that they have only a small chance of becoming the best hyperparameters. See :ref:`pruning-label` for more details.
 
------------------------------
-A putting things together
------------------------------
 
-Putting everything together, a typical hyperparameter tuning code may look something like this
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Pruners
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+When wrapping an objective function with ```pyhopper.wrap_n_times(noisy_objective,3)```, we can potentially save a lot of compute if we discontinue an unpromising candidate after the evaluation. 
+For instance, if our current best parameters evaluate to an accuracy of 95%, and a sampled candidate evaluates to 70% in the first evaluation, it does not make sense to evaluate the candidate two more times. 
+Instead, we can *prune* the candidate.
 
 .. code-block:: python
 
-    import pyhopper
+    search = pyhopper.Search(...)
 
-    def my_objective(param: dict) -> float:
-        # Add code here
-        return val_acc
+    search.run(
+        pyhopper.wrap_n_times(noisy_objective,3),
+        "maximize",
+        max_steps=50,
+        pruner = pyhopper.pruners.QuantilePruner(0.8) # discontinue candidates if they are in the bottom 80%
+    )
+
+.. code-block:: text
+
+    > Search is scheduled for 50 steps
+    > Current best 0.0596: 100%|█████████████████████████| 50/50 [00:00<00:00, 101.45steps/s]
+    > ======================= Summary ======================
+    > Mode              : Best f : Steps : Pruned    : Time
+    > -----------       : ---    : ---   : ---       : ---
+    > Initial solution  : -4.09  : 1     : 0         : 9 ms
+    > Random seeding    : 0.0596 : 6     : 43        : 60 ms
+    > -----------       : ---    : ---   : ---       : ---
+    > Total             : 0.0596 : 7     : 43        : 69 ms
+    > ======================================================
+
+For further details, see :ref:`pruning-label`.
+
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Accessing the search history
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Pyhopper keeps track of all evaluated parameter candidates and corresponding objective value in the ``Search.history`` property. 
+We can, for instance, use this history to examine or visualize the search space. 
+
+.. code-block:: python
 
     search = pyhopper.Search(
         {
-            "epochs": 20,
-            "num_layers": pyhopper.int(1, 8, init=4),
-            "batch_size": pyhopper.int(32, 512, multiple_of=32),
-            "dropout": pyhopper.float(0, 0.5, precision=1),
-            "lr": pyhopper.float(1e-5, 1e-2, log=True, precision=1),
-            "opt": pyhopper.choice(["adam", "rmsprop", "sgd"], init="adam"),
-            "weight_decay": pyhopper.choice([0, 1e-5, 1e-4, 1e-3], is_ordinal=True),
+            "lr": pyhopper.float(1e-5,1e-2,log=True),
         }
     )
-    search.run(pyhopper.wrap_n_times(my_objective,3), "max", "4h", n_jobs="per-gpu")
+    search.run(...)
+
+    fig, ax = plt.subplots(figsize=(5, 5))
+    b = ax.scatter(
+        x=search.history["lr"],
+        y=search.history.fs,
+    )
+    ax.set_xlabel("Sampled 'lr' parameter")
+    ax.set_ylabel("Objective value")
+    plt.show(fig)
+
+For further details see See :ref:`history-label`.

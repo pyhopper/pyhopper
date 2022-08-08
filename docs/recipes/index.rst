@@ -1,6 +1,6 @@
 :hide-toc:
 
-Code Recipes
+Copy+Paste Snippets
 ##########################
 
 In this guide we discuss the most common advanced uses cases of PyHopper.
@@ -10,6 +10,7 @@ In this guide we discuss the most common advanced uses cases of PyHopper.
 
     numpy
     history
+    checkpoints
     pruners
     nans
     tensorboard

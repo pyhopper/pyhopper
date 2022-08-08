@@ -1,4 +1,6 @@
-Tracking sampled hyperparameters
+.. _history-label:
+
+Search history
 ----------------------------------------------------------
 
 In some cases we are not only interested in the best hyperparameter but the entire distribution of hyperparameters and
@@ -37,7 +39,7 @@ Pyhopper keeps track of all evaluated candidates in the :attr:`pyhopper.Search.h
         y=search.history["y"],
         c=search.history.fs,
     )
-    ax.set_xlabel("y")
+    ax.set_ylabel("y")
     ax.set_xlabel("x")
     ax.set_title("Marginals")
     fig.colorbar(b, ax=ax, label="Objective value")

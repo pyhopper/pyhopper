@@ -1,6 +1,6 @@
 :hide-toc:
 
-Examples
+Complete Examples
 ##########################
 
 .. toctree::
