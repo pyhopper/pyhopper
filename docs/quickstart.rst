@@ -140,7 +140,7 @@ To limit the precision, we can use the :code:`precision` argument.
         search = pyhopper.Search(
             {
                 "dropout": pyhopper.float(0, 0.5, "0.2f"), # 2 digits after the comma (linear)
-                "lr": pyhopper.float(1e-5, 1e-1, "0.1g")), # 1 significant digit (logarithmic)
+                "lr": pyhopper.float(1e-5, 1e-1, "0.1g"), # 1 significant digit (logarithmic)
             }
         )
 
