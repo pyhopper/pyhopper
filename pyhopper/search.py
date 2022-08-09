@@ -663,7 +663,8 @@ class Search:
 
         return self._best_solution
 
-    def save(self, checkpoint_path, pruner=None):
+    def save(self, checkpoint_path, pruner=None) -> str:
+        """Saves the internal state of the hyperparameter search (history, current best, etc.) at the given checkpoint path."""
         state_dict = {}
 
         if self._run_context is not None and self._run_context.pruner is not None:
@@ -692,6 +693,11 @@ class Search:
         return checkpoint_path
 
     def load(self, checkpoint_path, pruner=None):
+        """Loads the internal state of the hyperparameter search (history, current best, etc.) at the given checkpoint path.
+
+        :param checkpoint_path: File from which to load the checkpoint
+        :param pruner: Pruner object whose internal state should also be loaded from the checkpoint
+        """
         state_dict = load_dict(checkpoint_path)
 
         try:

@@ -135,6 +135,14 @@ To limit the precision, we can use the :code:`precision` argument.
 
     The `precision` and `log` arguments can also be set via the `fmt` (format string) argument. For instance, `fmt="0.2f"`` is short for `log=False, precision=2`, and `fmt="0.1g"` is short for `log=True, precision=1`.
 
+    .. code-block:: python
+
+        search = pyhopper.Search(
+            {
+                "dropout": pyhopper.float(0, 0.5, "0.2f"), # 2 digits after the comma (linear)
+                "lr": pyhopper.float(1e-5, 1e-1, "0.1g")), # 1 significant digit (logarithmic)
+            }
+        )
 
 :meth:`pyhopper.choice` requires a :code:`list` of possible values for this hyperparameter.
 Similar to before, we can provide an initial guess.
