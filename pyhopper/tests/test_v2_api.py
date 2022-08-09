@@ -53,6 +53,9 @@ def test_checkpoint():
     assert ckpt["history"]["log_candidate"][0]["lr"] == 0.1
     assert ckpt["history"]["log_candidate"][1]["lr"] == 0.2
     assert ckpt["history"]["log_candidate"][2]["lr"] == 0.3
+    search += {"lr": 0.4}
+    search += {"lr": 0.5}
+    search += {"lr": 0.6}
 
     r1 = search.run(of, direction="max", steps=3, checkpoint_path=checkpoint_path)
     assert len(search.history._log_candidate) == 6
