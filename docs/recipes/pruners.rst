@@ -1,6 +1,6 @@
 .. _pruning-label:
 
-Discontinuing unpromising candidates during evaluation
+Pruners
 ------------------------------------------------------------------------
 
 As discussed in the quickstart guide, the training process of a neural network is stochastic, making single evaluations of a hyperparameter candidate not fully trustworthy.

@@ -266,7 +266,7 @@ We can automatically save the search progress in a checkpoint file, so if the pr
     search.save("run_completed.ckpt")
     # search.load("run_completed.ckpt")
 
-If the file ``checkpoint_path`` already exists, Pyhopper is try to load it and resume the remaining search.
+If the file ``checkpoint_path`` already exists, Pyhopper will try to load it and resume the remaining search.
 At the end of the search, the file will **not** be deleted and we can use it extend the search, for instance, running it for another day if we are not satisfied with the results.  
 
 For further details see :ref:`checkpointing-label`

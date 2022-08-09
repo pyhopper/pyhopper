@@ -59,6 +59,45 @@ def test_checkpoint():
     os.remove(checkpoint_path)
 
 
+def dummy_of(config):
+    yield config["lr"] - 2
+    yield config["lr"] - 1
+    yield config["lr"]
+
+
+def test_checkpoint_pruner():
+    search = pyhopper.Search(lr=pyhopper.float(0, 1))
+    pruner = pyhopper.pruners.TopKPruner(3)
+    search += {"lr": 0.1}
+    search += {"lr": 0.4}
+    search += {"lr": 0.5}
+    search += {"lr": 0.2}
+    search += {"lr": 0.3}
+
+    checkpoint_path = "/tmp/ph.test"
+    if os.path.isfile(checkpoint_path):
+        os.remove(checkpoint_path)
+
+    r1 = search.run(
+        dummy_of,
+        direction="max",
+        steps=5,
+        checkpoint_path=checkpoint_path,
+        pruner=pruner,
+    )
+    assert "lr" in r1.keys()
+    ckpt = load_dict(checkpoint_path)
+    assert 0.4 in ckpt["pruner"]["top_k_of"]
+    assert 0.3 in ckpt["pruner"]["top_k_of"]
+    assert 0.5 in ckpt["pruner"]["top_k_of"]
+
+    pruner2 = pyhopper.pruners.TopKPruner(3)
+    search.load(checkpoint_path, pruner=pruner2)
+    pruner2.top_k_intermediates[1][1] = pruner.top_k_intermediates[1][1]
+    pruner2.top_k_intermediates[0][2] = pruner.top_k_intermediates[0][2]
+    os.remove(checkpoint_path)
+
+
 def test_load_store():
     test = {"a": 1, "b": np.array((0.1, 0.2))}
     print(test)
@@ -72,5 +111,20 @@ def test_load_store():
     assert np.allclose(test["b"], obj["b"])
 
 
+def of_ul(param):
+    assert 1e-5 <= param["l"] <= 1e-1
+    assert 1 <= param["u"] <= 10
+    return 0
+
+
+def test_fmt():
+    search = pyhopper.Search(
+        l=pyhopper.float(1e-5, 1e-2, ":0.5g"), u=pyhopper.float(1, 10, ":0.1f")
+    )
+
+    r1 = search.run(of_ul, direction="max", steps=20)
+
+
 if __name__ == "__main__":
-    test_checkpoint()
+    # test_checkpoint()
+    test_checkpoint_pruner()

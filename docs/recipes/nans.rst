@@ -1,4 +1,4 @@
-Dealing with NaNs and exceptions
+NaNs and Exceptions
 ---------------------------------
 
 **Not a number** (NaN) values occurring in the objective function can have two possible reasons:

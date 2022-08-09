@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import os.path
+from unittest.loader import VALID_MODULE_NAME
 
 from .cache import EvaluationCache
 from .callbacks import History
@@ -144,8 +145,8 @@ def register_choice(
 def register_float(
     lb: Optional[Union[int, float, np.ndarray]] = None,
     ub: Optional[Union[int, float, np.ndarray]] = None,
-    init: Optional[Union[int, float, np.ndarray]] = None,
     fmt: Optional[str] = None,
+    init: Optional[Union[int, float, np.ndarray]] = None,
     log: Union[bool] = None,
     precision: Optional[int] = None,
     shape: Optional[Union[int, Tuple]] = None,
@@ -177,16 +178,16 @@ def register_float(
         raise ValueError(f"Cannot specify `log` and `fmt` at the same time.")
 
     if fmt is not None:
+        # simple but non-pedantic parsing of the format string
         if fmt.endswith("g"):
             log = True
-        fmt = (
-            fmt.replace(":", "")
-            .replace("0", "")
-            .replace(".", "")
-            .replace("g", "")
-            .replace("f", "")
-        )
-        precision = int(fmt)
+        fmt = fmt.replace(":", "").replace(".", "").replace("g", "").replace("f", "")
+        try:
+            precision = int(fmt)
+        except ValueError as e:
+            raise ValueError(
+                f"Could not parse format string '{fmt}'. Valid examples are ':0.3f', '0.1g' (error details: {str(e)})"
+            )
 
     if log and (lb is None or ub is None):
         raise ValueError(
@@ -220,7 +221,7 @@ class Search:
         Creates a new search object
 
         :param args: dict defining the search space. If multiple dicts are provided the dicts will be merged.
-        param kwargs: key-value pairs defining the search space. Will be merged with the numbered arguments if some are provided
+        :param kwargs: key-value pairs defining the search space. Will be merged with the numbered arguments if some are provided
         """
         parameters = {}
         if len(args) > 0:
@@ -509,6 +510,8 @@ class Search:
 
         :param objective_function: The objective function that should be optimized.
             Can be a generator function that yields estimates of the true objective function to prune unpromising candidates early on.
+        :param direction: String defining if the objective function should be minimized or maximize
+            (admissible values are 'min','minimize', or 'max','maximize')
         :param timeout: Search timeout in seconds or a string, e.g., "1h 30min", "4d 12h".
         :param steps: Number of search steps. Must be left None if a value for `timeout` is provided.
         :param endless_mode: Setting this argument to True runs the search until the user interrupts (via CTRL+C). Must be left Noen if a value for `timeout` or `steps` is provided
@@ -522,26 +525,24 @@ class Search:
             `n_jobs="per-gpu"` spawns a process for each GPU (and sets the visibility of the GPU in the environment variables accordingly).
         :param quiet: If True, then a progress bar is shown during the search and a short summary at the end.
         :param ignore_nans: If True, NaN (not-a-number) values returned by the objective function will be ignored
-        (parameters will be treated the same as pruned parameter values). If False (default), NaN values returned by the
-        objective function will raise an exception (this might be important for finding bugs in the objective function)
+            (parameters will be treated the same as pruned parameter values). If False (default), NaN values returned by the
+            objective function will raise an exception (this might be important for finding bugs in the objective function)
         :param mp_backend:
         :param enable_rejection_cache: If True (default), generated parameter candidates will be filtered by removing
-         duplicates (= don't evaluate a parameter if the same parameter has been already evaluated before).
-         If False, no such check/filtering is performed.
+             duplicates (= don't evaluate a parameter if the same parameter has been already evaluated before).
+             If False, no such check/filtering is performed.
         :param callbacks: A list of `pyhopper.callbacks.Callback` instances that will be called throughout the search.
         :param start_temperature:
         :param end_temperature:
         :param kwargs: A dict that will be passed to the objective function as named arguments.
         :param checkpoint_path: A file or directory for storing the intermediate state of the search.
-        If `checkpoint_path` is an existing directory, Pyhopper will save the state in a new file "pyhopper_run_XXXXX.ckpt".
+            If `checkpoint_path` is an existing directory, Pyhopper will save the state in a new file "pyhopper_run_XXXXX.ckpt".
         :param overwrite_checkpoint:  If True, the file provided by the `checkpoint_path` argument will be overwritten if it already exists.
-        If False (default), Pyhopper will try to restore and continue the search from the checkpoint provided by the `checkpoint_path`.
-        If the file provided in the `checkpoint_path` argument does not exist, this argument will be ignored.
+            If False (default), Pyhopper will try to restore and continue the search from the checkpoint provided by the `checkpoint_path`.
+            If the file provided in the `checkpoint_path` argument does not exist, this argument will be ignored.
         :param keep_history: If True (default), the all evaluated candidate parameters and correspondign objective values
-        will be stored in the `pyhopper.Search.history` property.
-        If False, no such history is created (this might save some memory).
-        :param direction: String defining if the objective function should be minimized or maximize
-            (admissible values are 'min','minimize', or 'max','maximize')
+            will be stored in the `pyhopper.Search.history` property.
+            If False, no such history is created (this might save some memory).
         :return: A `dict` containing the best found parameters
         """
         if kwargs is None:
@@ -571,6 +572,7 @@ class Search:
             self._checkpoint_path = checkpoint_path
             callbacks.append(CheckpointCallback(checkpoint_path))
 
+        self._pruner = pruner
         self._run_context = RunContext(
             direction,
             pruner,
@@ -648,6 +650,7 @@ class Search:
             # Before entering the loop, let's wait until we can run at least one candidate
             self._wait_for_one_free_executor()
 
+        self._run_context.terminate = True
         self._wait_for_all_running_jobs()
 
         for c in self._run_context.callbacks:
@@ -660,52 +663,85 @@ class Search:
 
         return self._best_solution
 
-    def save(self, checkpoint_path, save_run_context=True):
+    def save(self, checkpoint_path, pruner=None):
         state_dict = {}
+
+        if self._run_context is not None and self._run_context.pruner is not None:
+            if pruner is not None and pruner != self._run_context.pruner:
+                raise ValueError(
+                    f"Error. Pruner object passed to 'save' and other pruner object passed to 'run'"
+                )
+            pruner = self._run_context.pruner
+
+        # Don't save run_context if .terminate is True
         state_dict["run_context"] = (
             None
-            if self._run_context is None or not save_run_context
+            if self._run_context is None or self._run_context.terminate
             else self._run_context.state_dict()
         )
         state_dict["cache"] = self._f_cache.state_dict()
         state_dict["best_f"] = self._best_f
         state_dict["history"] = self._history.state_dict()
+
+        if pruner is not None:
+            state_dict["pruner"] = pruner.state_dict()
         state_dict["best_solution"] = self._best_solution
 
         checkpoint_path = convert_to_checkpoint_path(checkpoint_path)
         store_dict(checkpoint_path, state_dict)
         return checkpoint_path
 
-    def load(self, checkpoint_path, restore_run_context=True):
+    def load(self, checkpoint_path, pruner=None):
         state_dict = load_dict(checkpoint_path)
 
         try:
-            if restore_run_context and state_dict["run_context"] is not None:
+            if state_dict["run_context"] is not None:
                 self._run_context.load_state_dict(state_dict["run_context"])
 
             self._f_cache.load_state_dict(state_dict["cache"])
             self._history.load_state_dict(state_dict["history"])
             self._best_f = state_dict["best_f"]
             self._best_solution = state_dict["best_solution"]
+            if "pruner" in state_dict:
+                if (
+                    self._run_context is not None
+                    and self._run_context.pruner is not None
+                ):
+                    if pruner is not None and pruner != self._run_context.pruner:
+                        raise ValueError(
+                            f"Error. Pruner object passed to 'load' and other pruner object passed to 'run'"
+                        )
+                    pruner = self._run_context.pruner
+                if pruner is not None:
+                    pruner.load_state_dict(state_dict["pruner"])
+
         except KeyError as e:
             raise ValueError(f"Could not parse file '{checkpoint_path}' ({str(e)})")
 
     @property
-    def manual_queue_count(self):
+    def manual_queue_count(self) -> int:
+        """Number of candidate parameters that are manually added by the user and will be evaluated first when run is called"""
         return len(self._manually_queued_candidates)
 
     @property
-    def checkpoint_path(self):
+    def checkpoint_path(self) -> Optional[str]:
+        """Path to the checkpoint file in which the intermediate state of the search will be stored.
+        Equals the `checkpoint_path` argument of `search.run()` if the argument was a file.
+        If the `checkpoint_path` argument of `search.run()` was a directory, then the newly created file checkpoint file will be returned.
+        None if `search.run` was called without providing a `checkpoint_path`"""
         return self._checkpoint_path
 
     @property
-    def best(self):
+    def best(self) -> Optional[dict]:
+        """A dict object containing the best found parameter so far. None if no candidate has been evaluated yet."""
         return self._best_solution
 
     @property
-    def best_f(self):
+    def best_f(self) -> Optional[float]:
+        """The objective value of the best found parameter so far. None if no candidate has been evaluated yet."""
         return self._best_f
 
     @property
-    def history(self):
+    def history(self) -> History:
+        """Contains a list of all evaluated candidates and corresponding objective values so far."""
         return self._history

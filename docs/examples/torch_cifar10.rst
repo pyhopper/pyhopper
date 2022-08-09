@@ -1,4 +1,4 @@
-CIFAR-10 with PyTorch and a ResNet34
+PyTorch (ResNet34 with CIFAR-10) 
 -------------------------------------
 
 A typical use-case with PyTorch would look something like this

@@ -1,4 +1,4 @@
-Array parameters
+NumPy parameters
 -----------------------------
 
 For NumPy array parameters, the functions :meth:`pyhopper.float` and :meth:`pyhopper.int` provide a :code:`shape` argument.

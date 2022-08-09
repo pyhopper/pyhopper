@@ -1,4 +1,4 @@
-Tracking with Tensorboard
+Tensorboard integration
 ----------------------------------------------------------
 
 Hyperparameter experiments can be tracked with `Tensorboard <https://www.tensorflow.org/tensorboard/get_started/>`_ via the  :meth:`pyhopper.callbacks.tensorboard.TensorboardCallback` callback.

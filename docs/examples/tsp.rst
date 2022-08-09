@@ -1,4 +1,4 @@
-Travelling Salesman Problem with PyHopper
+Travelling Salesman (black-box optimization)
 -------------------------------------------
 
 Pyhopper's flexibility allows us to implement heuristics for combinatorial optimization problems such as for the `Travelling Salesman Problem <https://en.wikipedia.org/wiki/Travelling_salesman_problem>`_ (TSP) with few lines of code.

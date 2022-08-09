@@ -509,16 +509,14 @@ class RunContext:
         # Must be the first callback
         self.callbacks.insert(0, self.run_history)
         self.task_executor = task_executor
+        self.terminate = False
 
     def state_dict(self):
         return {
             "run_history": self.run_history.state_dict(),
             "schedule": self.schedule.state_dict(),
-            "pruner": None if self.pruner is None else self.pruner.state_dict(),
         }
 
     def load_state_dict(self, state):
         self.run_history.load_state_dict(state["run_history"])
         self.schedule.load_state_dict(state["schedule"])
-        if self.pruner is not None:
-            self.pruner.load_state_dict(state["pruner"])

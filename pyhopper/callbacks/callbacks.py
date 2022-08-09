@@ -89,7 +89,7 @@ class CheckpointCallback(Callback):
 
     def on_search_end(self):
         self._search_obj.save(
-            self._checkpoint_path, save_run_context=False
+            self._checkpoint_path
         )  # Search is done -> forget run context
 
 

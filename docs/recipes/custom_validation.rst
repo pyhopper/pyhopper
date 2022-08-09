@@ -1,4 +1,4 @@
-Multiple validation splits
+Cross-validation
 -----------------------------
 
 PyHopper provides an easy way to perform cross-validation in the objective function with minimal code changes,

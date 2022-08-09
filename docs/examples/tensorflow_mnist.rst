@@ -1,4 +1,4 @@
-MLP with TensorFlow on MNIST
+TensorFlow (MNIST)
 -------------------------------------
 
 A typical use-case with Tensorflow would look something like this
