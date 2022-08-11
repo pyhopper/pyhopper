@@ -151,9 +151,14 @@ To manually prune a running evaluation we can raise a :meth:`pyhopper.PruneEvalu
 Pruning without generator functions
 ==============================================
 
-We can also use :meth:`pyhopper.pruners.Pruner` objects without using generator functions.
-This might be useful when some estimate of the true object function is only available within a callback function 
-(for instance in a `TensorFlow/Keras <https://www.tensorflow.org/api_docs/python/tf/keras/callbacks/Callback>`_ or `pytorch-lightning <https://pytorch-lightning.readthedocs.io/en/stable/extensions/callbacks.html>`_ callback).
+We can also use :meth:`pyhopper.pruners.Pruner` objects without using generator functions by calling the :meth:`pyhopper.should_prune` method.
+The method accepts estimates of the objective function as argument, passes it the pruner, and returns a boolean indicating if the pruner recommends stopping the current evaluation.
+The actual pruning must be performed by the user by raising a :meth:`pyhopper.PruneEvaluation`.
+
+.. note::
+
+    The :meth:`pyhopper.should_prune` might be useful when some estimate of the true object function is only available within a callback function 
+    (for instance in a `TensorFlow/Keras <https://www.tensorflow.org/api_docs/python/tf/keras/callbacks/Callback>`_ or `pytorch-lightning <https://pytorch-lightning.readthedocs.io/en/stable/extensions/callbacks.html>`_ callback).
 
 .. code-block:: python
 

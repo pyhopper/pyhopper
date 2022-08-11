@@ -8,3 +8,7 @@ Utilities
 .. autofunction:: merge_dicts
 
 .. autofunction:: parse_timeout
+
+.. autofunction:: PruneEvaluation
+
+.. autofunction:: should_prune
