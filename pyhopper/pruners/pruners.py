@@ -27,7 +27,14 @@ def set_global_pruner(pruner):
     _global_intermediate_results_list = []
 
 
-def should_prune(of_estimate):
+def should_prune(of_estimate: float) -> bool:
+    """Asks the pruner object passed to `search.run` if the current evaluation should be pruned (= stopped)
+
+    :param of_estimate: An estimate of the true object function. For instance, this can be the training accuracy of a neural network
+        after a few epochs.
+    :return: True if the pruner thinks this parameter candidate is not worth continuing evaluating. False if no pruner
+        object was passed to `search.run` or if the pruner determines the candidate is worth further evaluating.
+    """
     global _global_pruner_obj
     global _global_intermediate_results_list
     if _global_pruner_obj is None:  # no Pruner object -> don't prune

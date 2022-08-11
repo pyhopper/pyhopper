@@ -147,3 +147,40 @@ To manually prune a running evaluation we can raise a :meth:`pyhopper.PruneEvalu
     > ----------------  : ----   : ----  : ----     : ----
     > Total             : 0.0388 : 32    : 18       : 23 ms
     > =====================================================
+
+Pruning without generator functions
+==============================================
+
+We can also use :meth:`pyhopper.pruners.Pruner` objects without using generator functions.
+This might be useful when some estimate of the true object function is only available within a callback function 
+(for instance in a `TensorFlow/Keras <https://www.tensorflow.org/api_docs/python/tf/keras/callbacks/Callback>`_ or `pytorch-lightning <https://pytorch-lightning.readthedocs.io/en/stable/extensions/callbacks.html>`_ callback).
+
+.. code-block:: python
+
+    import pyhopper
+    import tensorflow as tf
+
+    class MyCallback(tf.keras.callbacks.Callback):
+        def on_epoch_end(self, epoch, logs=None):
+            if epoch == 20:
+                # the validation accuracy at epoch 20 is our objective estimate
+                val_acc = logs["val_accuracy"]
+
+                # Send the the estmiate to the pruner and asks if the
+                # evaluation should be stopped
+                if pyhopper.should_prune(val_acc):
+                    raise pyhopper.PruneEvaluation()
+
+    def of(param):
+        
+        model = tf.keras.Model(...)
+
+        model.fit(train_dataset,val_dataset, callbacks=[MyCallback()])
+
+        return model.evaluate(val_dataset)
+
+    # main process
+    search = pyhopper.Search(...)
+    search.run(of, "max", "6h", 
+        pruner=pyhopper.pruners.TopKPruner(10)
+    )
