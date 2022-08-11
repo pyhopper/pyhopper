@@ -298,6 +298,7 @@ class ProgBar(Callback):
                     self._run_history.best_per_type[CandidateType.INIT],
                     self._run_history.amount_per_type[CandidateType.INIT],
                     self._run_history.pruned_per_type[CandidateType.INIT],
+                    self._run_history.nan_per_type[CandidateType.INIT],
                     self._run_history.runtime_per_type[CandidateType.INIT],
                 )
             )
@@ -308,6 +309,7 @@ class ProgBar(Callback):
                     self._run_history.best_per_type[CandidateType.MANUALLY_ADDED],
                     self._run_history.amount_per_type[CandidateType.MANUALLY_ADDED],
                     self._run_history.pruned_per_type[CandidateType.MANUALLY_ADDED],
+                    self._run_history.nan_per_type[CandidateType.MANUALLY_ADDED],
                     self._run_history.runtime_per_type[CandidateType.MANUALLY_ADDED],
                 )
             )
@@ -318,6 +320,7 @@ class ProgBar(Callback):
                     self._run_history.best_per_type[CandidateType.RANDOM_SEEDING],
                     self._run_history.amount_per_type[CandidateType.RANDOM_SEEDING],
                     self._run_history.pruned_per_type[CandidateType.RANDOM_SEEDING],
+                    self._run_history.nan_per_type[CandidateType.RANDOM_SEEDING],
                     self._run_history.runtime_per_type[CandidateType.RANDOM_SEEDING],
                 )
             )
@@ -328,6 +331,7 @@ class ProgBar(Callback):
                     self._run_history.best_per_type[CandidateType.LOCAL_SAMPLING],
                     self._run_history.amount_per_type[CandidateType.LOCAL_SAMPLING],
                     self._run_history.pruned_per_type[CandidateType.LOCAL_SAMPLING],
+                    self._run_history.nan_per_type[CandidateType.LOCAL_SAMPLING],
                     self._run_history.runtime_per_type[CandidateType.LOCAL_SAMPLING],
                 )
             )
@@ -337,11 +341,12 @@ class ProgBar(Callback):
                 self._run_history.best_f,
                 self._run_history.total_amount,
                 self._run_history.total_pruned,
+                self._run_history.total_nan,
                 self._schedule.current_runtime,
             )
         )
         text_list = []
-        for text, f, steps, pruned, elapsed in text_value_quadtuple:
+        for text, f, steps, pruned, nan, elapsed in text_value_quadtuple:
             value = "x" if f is None else f"{f:0.3g}"
             text_list.append(
                 [
@@ -349,16 +354,25 @@ class ProgBar(Callback):
                     value,
                     steps_to_pretty_str(steps),
                     steps_to_pretty_str(pruned),
+                    steps_to_pretty_str(nan),
                     time_to_pretty_str(elapsed),
                 ]
             )
-        text_list.insert(0, ["Mode", "Best f", "Steps", "Pruned", "Time"])
-        text_list.insert(1, ["----------------", "----", "----", "----", "----"])
-        text_list.insert(-1, ["----------------", "----", "----", "----", "----"])
+        text_list.insert(0, ["Mode", "Best f", "Steps", "Pruned", "NaN", "Time"])
+        text_list.insert(
+            1, ["----------------", "----", "----", "----", "----", "----"]
+        )
+        text_list.insert(
+            -1, ["----------------", "----", "----", "----", "----", "----"]
+        )
         if self._run_history.total_pruned == 0:
             # No candidate was pruned so let's not show this column
             for t in text_list:
                 t.pop(3)
+        if self._run_history.total_nan == 0:
+            # No candidate was Nan so let's not show this column
+            for t in text_list:
+                t.pop(-2)
         num_items = len(text_list[0])
         maxes = [
             np.max([len(text_list[j][i]) for j in range(len(text_list))])
@@ -394,6 +408,7 @@ class RunHistory(Callback):
         self._direction = direction
         self.total_runtime = 0
         self.total_amount = 0
+        self.total_nan = 0
         self.total_pruned = 0
         self.estimated_candidate_runtime = 0
         self.best_f = None
@@ -422,6 +437,12 @@ class RunHistory(Callback):
             CandidateType.RANDOM_SEEDING: 0,
             CandidateType.LOCAL_SAMPLING: 0,
         }
+        self.nan_per_type = {
+            CandidateType.INIT: 0,
+            CandidateType.MANUALLY_ADDED: 0,
+            CandidateType.RANDOM_SEEDING: 0,
+            CandidateType.LOCAL_SAMPLING: 0,
+        }
 
     def is_better(self, old, new):
         return (
@@ -439,6 +460,7 @@ class RunHistory(Callback):
         self.best_per_type[CandidateType.INIT] = self.best_f
 
     def on_evaluate_end(self, candidate: dict, f: float, info: ParamInfo):
+        self.amount_per_type[info.type] += 1
         runtime = info.finished_at - info.sampled_at
         if self.is_better(self.best_f, f):
             self.best_f = f

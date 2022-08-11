@@ -36,6 +36,13 @@ class Callback:
         """
         pass
 
+    def on_evaluate_nan(self, candidate: dict, info: ParamInfo):
+        """Called if `candidate` is evaluated to NaN and the `ignore_nans` argument of `run` was set to True
+
+        :param candidate: Parameter value that evaluate to NaN
+        """
+        pass
+
     def on_new_best(self, new_best: dict, f: float, info: ParamInfo):
         """Called when a new best parameter is found
 
@@ -84,6 +91,9 @@ class CheckpointCallback(Callback):
     def on_evaluate_pruned(self, candidate: dict, info: ParamInfo):
         self._search_obj.save(self._checkpoint_path)
 
+    def on_evaluate_nan(self, candidate: dict, info: ParamInfo):
+        self._search_obj.save(self._checkpoint_path)
+
     def on_new_best(self, new_best: dict, f: float, info: ParamInfo):
         self._search_obj.save(self._checkpoint_path)
 
@@ -112,6 +122,10 @@ class History(Callback):
         self._pruned_candidates = []
         self._pruned_finished_at = []
         self._pruned_runtime = []
+        self._nan_types = []
+        self._nan_candidates = []
+        self._nan_finished_at = []
+        self._nan_runtime = []
         self._start_time = time.time()
         self._current_best_f = None
         self._enabled = True
@@ -128,6 +142,10 @@ class History(Callback):
             "pruned_candidates": self._pruned_candidates,
             "pruned_finished_at": self._pruned_finished_at,
             "pruned_runtime": self._pruned_runtime,
+            "nan_types": self._nan_types,
+            "nan_candidates": self._nan_candidates,
+            "nan_finished_at": self._nan_finished_at,
+            "nan_runtime": self._nan_runtime,
             "start_time": self._start_time,
             "current_best_f": self._current_best_f,
         }
@@ -142,6 +160,10 @@ class History(Callback):
         self._pruned_candidates = state_dict["pruned_candidates"]
         self._pruned_finished_at = state_dict["pruned_finished_at"]
         self._pruned_runtime = state_dict["pruned_runtime"]
+        self._nan_types = state_dict["nan_types"]
+        self._nan_candidates = state_dict["nan_candidates"]
+        self._nan_finished_at = state_dict["nan_finished_at"]
+        self._nan_runtime = state_dict["nan_runtime"]
         self._start_time = state_dict["start_time"]
         self._current_best_f = state_dict["current_best_f"]
 
@@ -156,6 +178,15 @@ class History(Callback):
 
         if self._log_candidate_enabled:
             self._pruned_candidates.append(candidate)
+
+    def on_evaluate_nan(self, candidate: dict, info: ParamInfo):
+        runtime = info.finished_at - info.sampled_at
+        self._nan_runtime.append(runtime)
+        self._nan_types.append(info.type)
+        self._nan_finished_at.append(info.finished_at - self._start_time)
+
+        if self._log_candidate_enabled:
+            self._nan_candidates.append(candidate)
 
     def on_evaluate_end(self, candidate: dict, f: float, info: ParamInfo):
         runtime = info.finished_at - info.sampled_at

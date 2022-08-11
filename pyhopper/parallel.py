@@ -21,7 +21,11 @@ import numpy as np
 import sys
 import subprocess
 from xml.etree.ElementTree import fromstring
-
+from .pruners.pruners import (
+    set_global_pruner,
+    should_prune,
+    get_intermediate_results_list,
+)
 
 _signals_received = 0
 
@@ -165,8 +169,7 @@ class EvaluationResult:
     def __init__(self):
         self.value = None
         self.was_pruned = None
-        self.pruned_by_user = False
-        self.pruned_by_nan = False
+        self.is_nan = False
         self.intermediate_results = None
         self.error = None
 
@@ -191,6 +194,7 @@ def execute(objective_function, candidate, pruner, kwargs, remote=False, gpu=Non
     if remote:
         signal.signal(signal.SIGINT, dummy_signal_handler)
 
+    set_global_pruner(pruner)
     eval_result = EvaluationResult()
     try:
         iter_or_result = objective_function(candidate, **kwargs)
@@ -203,19 +207,14 @@ def execute(objective_function, candidate, pruner, kwargs, remote=False, gpu=Non
         if isinstance(iter_or_result, GeneratorType):
             # Generator mode
             repeat = True
-            eval_result.intermediate_results = []
             while repeat:
                 try:
                     ir = next(iter_or_result)
-                    eval_result.intermediate_results.append(ir)
                     eval_result.value = ir
                     if np.isnan(ir):
-                        eval_result.was_pruned = True
-                        eval_result.pruned_by_nan = True
+                        eval_result.is_nan = True
                         repeat = False
-                    if pruner is not None and pruner.should_prune(
-                        eval_result.intermediate_results
-                    ):
+                    if should_prune(ir):
                         # Let's not continue from here on
                         eval_result.was_pruned = True
                         repeat = False
@@ -225,17 +224,14 @@ def execute(objective_function, candidate, pruner, kwargs, remote=False, gpu=Non
             # No iterator but a simple function
             eval_result.value = iter_or_result
             if np.isnan(iter_or_result):
-                eval_result.was_pruned = True
-                eval_result.pruned_by_nan = True
+                eval_result.is_nan = True
     except PruneEvaluation:
         # If objective function raises this error, the evaluation will be treated as being pruned
         eval_result.was_pruned = True
-        # we may need the information if the purning was done by the user inside the objective function
-        # or by an pruner
-        eval_result.pruned_by_user = True
     except:
         etype, value, tb = sys.exc_info()
         eval_result.error = "".join(format_exception(etype, value, tb, 4096))
+    eval_result.intermediate_results = get_intermediate_results_list()
     return eval_result
 
 

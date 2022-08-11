@@ -17,6 +17,7 @@ import pyhopper.pruners as pruners
 import pyhopper.callbacks as callbacks
 from pyhopper.parameters import Parameter as Parameter
 from pyhopper.parallel import PruneEvaluation as PruneEvaluation
+from pyhopper.pruners.pruners import should_prune as should_prune
 from pyhopper.search import Search as Search
 from pyhopper.search import register_float as float
 from pyhopper.search import register_int as int

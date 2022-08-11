@@ -437,6 +437,7 @@ class Search:
     def _async_result_ready(self, candidate, param_info, candidate_result):
         if candidate_result.error is not None:
             if not self._caught_exception:
+                self._caught_exception = True
                 self._force_termination()
                 print("Remote process caught exception in objective function: ")
                 print("======================================================")
@@ -444,27 +445,31 @@ class Search:
                 print("======================================================")
                 raise ValueError("Pyhopper - Remote process caught exception")
             return
-        if candidate_result.pruned_by_nan and not self._run_context.ignore_nans:
+        if candidate_result.is_nan and not self._run_context.ignore_nans:
             raise ValueError(
                 "NaN returned in objective function. If NaNs should be ignored (treated as pruned evaluations) pass 'ignore_nans=True' argument to 'run'"
             )
         self._f_cache.commit(candidate, candidate_result.value)
-        if (
-            self._run_context.pruner is not None
-            and not candidate_result.pruned_by_user
-            and not candidate_result.pruned_by_nan
-        ):
-            # If the prune was done by the user or NaN we should not tell the Pruner object
-            if candidate_result.intermediate_results is None:
-                raise ValueError(
-                    "An Earlypruner was passed but the objective function is not a generator"
-                )
-            self._run_context.pruner.append(candidate_result.intermediate_results)
+        if self._run_context.pruner is not None and not candidate_result.is_nan:
+            # If the result is NaN we should not tell the Pruner object
+            # TODO: Maybe we should catch if the user does not call "should_prune" or the of is not a generator
+            # if candidate_result.intermediate_results is None:
+            #     raise ValueError(
+            #         "A Pruner was passed to `run` but the objective function is not a generator"
+            #     )
+            self._run_context.pruner.append(
+                candidate_result.intermediate_results, candidate_result.was_pruned
+            )
 
         if candidate_result.was_pruned:
             param_info.is_pruned = True
             for c in self._run_context.callbacks:
                 c.on_evaluate_pruned(candidate, param_info)
+            return
+        if candidate_result.is_nan:
+            param_info.is_nan = True
+            for c in self._run_context.callbacks:
+                c.on_evaluate_nan(candidate, param_info)
             return
 
         for c in self._run_context.callbacks:
@@ -558,6 +563,7 @@ class Search:
         if kwargs is None:
             kwargs = {}
 
+        self._caught_exception = False
         schedule = ScheduledRun(
             steps,
             timeout,

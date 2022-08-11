@@ -108,6 +108,37 @@ def test_simple2():
     )
 
 
+def of_3(param, x=None):
+    for i in range(10):
+        r = np.random.default_rng().normal() - np.square(param["lr"] - 4) * 10
+        if pyhopper.should_prune(r):
+            raise pyhopper.PruneEvaluation()
+    return np.random.default_rng().normal() - np.square(param["lr"] - 4) * 10
+
+
+def test_simple3():
+    search = pyhopper.Search(
+        {
+            "lr": pyhopper.float(
+                lb=0,
+                ub=10,
+            )
+        }
+    )
+
+    r1 = search.run(of_3, direction="max", steps=10)
+    r1 = search.run(
+        of_3, direction="max", steps=100, pruner=pyhopper.pruners.TopKPruner(5)
+    )
+    r1 = search.run(
+        of_3,
+        direction="max",
+        steps=200,
+        n_jobs=5,
+        pruner=pyhopper.pruners.TopKPruner(5),
+    )
+
+
 of_counter = 0
 
 
@@ -156,15 +187,16 @@ def test_nan():
         r1 = search.run(of_nan, direction="max", steps=10)
     of_counter = 0
     r1 = search.run(of_nan, direction="max", ignore_nans=True, steps=10)
-    with pytest.raises(ValueError):
-        of_counter = 0
-        r1 = search.run(
-            of_nan,
-            direction="max",
-            ignore_nans=True,
-            steps=100,
-            pruner=pyhopper.pruners.QuantilePruner(0.5),
-        )
+    # TODO: if should_prune is never called by pruner object is provided -> print an error
+    # with pytest.raises(ValueError):
+    #     of_counter = 0
+    #     r1 = search.run(
+    #         of_nan,
+    #         direction="max",
+    #         ignore_nans=True,
+    #         steps=100,
+    #         pruner=pyhopper.pruners.QuantilePruner(0.5),
+    #     )
     with pytest.raises(ValueError):
         of_counter = 0
         r1 = search.run(of_nan, direction="max", steps=200, n_jobs=5)
@@ -210,12 +242,12 @@ def test_topk():
     assert pruner.should_prune([0, 0, 0]) == False
     assert pruner.should_prune([0, 0, 0]) == False
 
-    pruner.append([12, 12, 12, 12, 10])
-    pruner.append([20, 20, 20, 20, 20])
-    pruner.append([0, 0, 0, 0, 0])
-    pruner.append([12, 12, 10, 12, 10])
-    pruner.append([12, 12, 12, 12, 10])
-    pruner.append([12, 12, 12, 12, 10])
+    pruner.append([12, 12, 12, 12, 10], False)
+    pruner.append([20, 20, 20, 20, 20], False)
+    pruner.append([0, 0, 0, 0, 0], False)
+    pruner.append([12, 12, 10, 12, 10], False)
+    pruner.append([12, 12, 12, 12, 10], False)
+    pruner.append([12, 12, 12, 12, 10], False)
     assert pruner.should_prune([11]) == True
     assert pruner.should_prune([11, 11]) == True
     assert pruner.should_prune([11, 11, 11]) == True
@@ -226,10 +258,10 @@ def test_topk():
     assert pruner.should_prune([12, 12, 12]) == False
     assert pruner.should_prune([12, 12, 12, 12]) == False
     assert pruner.should_prune([12, 12, 12, 12, 12]) == False
-    pruner.append([13, 15, 20, 13, 30])
-    pruner.append([15, 13, 20, 15, 30])
-    pruner.append([20, 15, 20, 20, 30])
-    pruner.append([13, 20, 13, 20, 30])
+    pruner.append([13, 15, 20, 13, 30], False)
+    pruner.append([15, 13, 20, 15, 30], False)
+    pruner.append([20, 15, 20, 20, 30], False)
+    pruner.append([13, 20, 13, 20, 30], False)
     assert pruner.should_prune([12]) == True
     assert pruner.should_prune([12, 12]) == True
     assert pruner.should_prune([12, 12, 12]) == True
@@ -254,14 +286,14 @@ def test_quantile2():
     assert pruner.should_prune([0, 0, 0]) == False
     assert pruner.should_prune([0, 0, 0]) == False
 
-    pruner.append([5, 5, 5, 5, 5])
-    pruner.append([20, 20, 50, 20, 20])
-    pruner.append([20, 20, 50, 20, 20])
-    pruner.append([20, 20, 50, 20, 20])
-    pruner.append([0, 0, 0, 0, 0])
-    pruner.append([0, 0, 0, 0, 0])
-    pruner.append([0, 0, 0, 0, 0])
-    pruner.append([7, 7, 7, 7, 7])
+    pruner.append([5, 5, 5, 5, 5], False)
+    pruner.append([20, 20, 50, 20, 20], False)
+    pruner.append([20, 20, 50, 20, 20], False)
+    pruner.append([20, 20, 50, 20, 20], False)
+    pruner.append([0, 0, 0, 0, 0], False)
+    pruner.append([0, 0, 0, 0, 0], False)
+    pruner.append([0, 0, 0, 0, 0], False)
+    pruner.append([7, 7, 7, 7, 7], False)
     assert pruner.should_prune([0, 0, 0]) == False
     assert pruner.should_prune([0, 0, 0, 0]) == False
     assert pruner.should_prune([10, 10, 10, 10, 10]) == False
@@ -282,15 +314,15 @@ def test_quantile():
     assert pruner.should_prune([0, 0, 0]) == False
     assert pruner.should_prune([0, 0, 0]) == False
 
-    pruner.append([5, 5, 5, 5, 5])
-    pruner.append([20, 20, 50, 20, 20])
-    pruner.append([0, 0, 0, 0, 0])
-    pruner.append([7, 7, 7, 7, 7])
-    pruner.append([0, 0, 0, 0, 0])
-    pruner.append([12, 12, 10, 12, 10])
-    pruner.append([12, 12, 12, 12, 10])
-    pruner.append([12, 12, 12, 12, 10])
-    pruner.append([12, 12, 12, 12, 10])
+    pruner.append([5, 5, 5, 5, 5], False)
+    pruner.append([20, 20, 50, 20, 20], False)
+    pruner.append([0, 0, 0, 0, 0], False)
+    pruner.append([7, 7, 7, 7, 7], False)
+    pruner.append([0, 0, 0, 0, 0], False)
+    pruner.append([12, 12, 10, 12, 10], False)
+    pruner.append([12, 12, 12, 12, 10], False)
+    pruner.append([12, 12, 12, 12, 10], False)
+    pruner.append([12, 12, 12, 12, 10], False)
     assert pruner.should_prune([8]) == True
     assert pruner.should_prune([8, 10]) == True
     assert pruner.should_prune([8, 10, 0]) == True
@@ -301,23 +333,23 @@ def test_quantile():
     assert pruner.should_prune([8, 10, 10]) == False
     assert pruner.should_prune([8, 10, 10, 12]) == False
     assert pruner.should_prune([8, 10, 10, 10]) == True
-    pruner.append([20, 20, 50, 20, 20])
-    pruner.append([20, 20, 50, 20, 20])
-    pruner.append([20, 20, 50, 20, 20])
-    pruner.append([20, 20, 50, 20, 20])
-    pruner.append([20, 20, 50, 20, 20])
-    pruner.append([20, 20, 50, 20, 20])
-    pruner.append([20, 20, 50, 20, 20])
-    pruner.append([20, 20, 50, 20, 20])
+    pruner.append([20, 20, 50, 20, 20], False)
+    pruner.append([20, 20, 50, 20, 20], False)
+    pruner.append([20, 20, 50, 20, 20], False)
+    pruner.append([20, 20, 50, 20, 20], False)
+    pruner.append([20, 20, 50, 20, 20], False)
+    pruner.append([20, 20, 50, 20, 20], False)
+    pruner.append([20, 20, 50, 20, 20], False)
+    pruner.append([20, 20, 50, 20, 20], False)
     assert pruner.should_prune([12]) == True
     assert pruner.should_prune([12, 12]) == True
     assert pruner.should_prune([8, 10, 30]) == True
     assert pruner.should_prune([8, 10, 30, 12]) == True
     assert pruner.should_prune([15, 15, 30, 15, 15]) == False
-    pruner.append([50, 50])
-    pruner.append([50])
+    pruner.append([50, 50], True)
+    pruner.append([50], True)
     for i in range(20):
-        pruner.append([50, 100, 50])
+        pruner.append([50, 100, 50], True)
     assert pruner.should_prune([20]) == True
     assert pruner.should_prune([20, 20]) == True
     assert pruner.should_prune([100]) == False
@@ -325,4 +357,4 @@ def test_quantile():
 
 
 if __name__ == "__main__":
-    test_nan_simple()
+    test_simple1()

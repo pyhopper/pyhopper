@@ -16,6 +16,31 @@
 import numpy as np
 
 
+_global_pruner_obj = None
+_global_intermediate_results_list = []
+
+
+def set_global_pruner(pruner):
+    global _global_pruner_obj
+    global _global_intermediate_results_list
+    _global_pruner_obj = pruner
+    _global_intermediate_results_list = []
+
+
+def should_prune(of_estimate):
+    global _global_pruner_obj
+    global _global_intermediate_results_list
+    if _global_pruner_obj is None:  # no Pruner object -> don't prune
+        return False
+    _global_intermediate_results_list.append(of_estimate)
+    return _global_pruner_obj.should_prune(_global_intermediate_results_list)
+
+
+def get_intermediate_results_list():
+    global _global_intermediate_results_list
+    return _global_intermediate_results_list
+
+
 class Pruner:
     def __init__(self):
         self.direction = None
@@ -36,7 +61,7 @@ class Pruner:
             return result
         return reduction(result)
 
-    def append(self, partial_results: list):
+    def append(self, partial_results: list, was_pruned: bool):
         raise NotImplementedError()
 
     def should_prune(self, partial_results: list):
@@ -61,7 +86,7 @@ class QuantilePruner(Pruner):
         self.warmup = warmup
         self.intermediates = None
 
-    def append(self, partial_results: list):
+    def append(self, partial_results: list, was_pruned: bool):
         if self.n is None:
             # First call -> initialize with empty lists
             self.n = len(partial_results)
@@ -122,7 +147,7 @@ class TopKPruner(Pruner):
         self.top_k_intermediates = state_dict["top_k_intermediates"]
         self.top_k_of = state_dict["top_k_of"]
 
-    def append(self, partial_results: list):
+    def append(self, partial_results: list, was_pruned: bool):
         if self.n is None:
             # First call -> initialize with empty lists
             self.n = len(partial_results)

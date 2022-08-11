@@ -36,6 +36,7 @@ class ParamInfo:
     sampled_at = None
     finished_at = None
     is_pruned = False
+    is_nan = False
 
     def __init__(self, candidate_type, sampled_at):
         self.type = candidate_type
