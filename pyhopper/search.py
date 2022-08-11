@@ -242,6 +242,7 @@ class Search:
         self._signal_listener = SignalListener()
         self._history = History()
         self._checkpoint_path = None
+        self._caught_exception = False
 
     def __iadd__(self, other):
         self.enqueue(other)
@@ -434,6 +435,15 @@ class Search:
                 self._async_result_ready(candidate, param_info, candidate_result)
 
     def _async_result_ready(self, candidate, param_info, candidate_result):
+        if candidate_result.error is not None:
+            if not self._caught_exception:
+                self._force_termination()
+                print("Remote process caught exception in objective function: ")
+                print("======================================================")
+                print(candidate_result.error)
+                print("======================================================")
+                raise ValueError("Pyhopper - Remote process caught exception")
+            return
         if candidate_result.pruned_by_nan and not self._run_context.ignore_nans:
             raise ValueError(
                 "NaN returned in objective function. If NaNs should be ignored (treated as pruned evaluations) pass 'ignore_nans=True' argument to 'run'"

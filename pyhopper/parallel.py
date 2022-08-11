@@ -15,6 +15,7 @@ import signal
 import time
 
 import os
+from traceback import format_exception
 from types import GeneratorType
 import numpy as np
 import sys
@@ -167,6 +168,7 @@ class EvaluationResult:
         self.pruned_by_user = False
         self.pruned_by_nan = False
         self.intermediate_results = None
+        self.error = None
 
 
 def dummy_signal_handler(sig, frame):
@@ -228,9 +230,12 @@ def execute(objective_function, candidate, pruner, kwargs, remote=False, gpu=Non
     except PruneEvaluation:
         # If objective function raises this error, the evaluation will be treated as being pruned
         eval_result.was_pruned = True
-        # we may need the information if the pruneation was done by the user inside the objective function
-        # or by an Earlypruner
+        # we may need the information if the purning was done by the user inside the objective function
+        # or by an pruner
         eval_result.pruned_by_user = True
+    except:
+        etype, value, tb = sys.exc_info()
+        eval_result.error = "".join(format_exception(etype, value, tb, 4096))
     return eval_result
 
 
