@@ -52,17 +52,6 @@ class SignalListener:
         if self._sigterm_received >= 3:
             if self._force_quit_callback is not None:
                 self._force_quit_callback()
-
-            import psutil
-
-            try:
-                parent = psutil.Process(os.getpid())
-                children = parent.children(recursive=True)
-                for process in children:
-                    process.send_signal(signal.SIGTERM)
-            except psutil.NoSuchProcess:
-                pass
-            sys.exit(-1)
         else:
             if self._gradual_quit_callback is not None:
                 self._gradual_quit_callback()

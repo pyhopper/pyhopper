@@ -13,7 +13,6 @@
 # limitations under the License.
 
 import os.path
-from unittest.loader import VALID_MODULE_NAME
 
 from .cache import EvaluationCache
 from .callbacks import History
@@ -438,11 +437,13 @@ class Search:
         if candidate_result.error is not None:
             if not self._caught_exception:
                 self._caught_exception = True
-                self._force_termination()
+                self._shutdown_worker_processes()
                 print("Remote process caught exception in objective function: ")
                 print("======================================================")
                 print(candidate_result.error)
-                print("======================================================")
+                print(
+                    "======================================================", flush=True
+                )
                 raise ValueError("Pyhopper - Remote process caught exception")
             return
         if candidate_result.is_nan and not self._run_context.ignore_nans:
@@ -492,10 +493,26 @@ class Search:
             for c in self._run_context.callbacks:
                 c.on_new_best(self._best_solution, self._best_f, param_info)
 
-    def _force_termination(self):
+    def _shutdown_worker_processes(self):
         # This is actually not needed but let's keep it for potential future use
         if self._run_context.task_executor is not None:
             self._run_context.task_executor.shutdown()
+            import psutil
+            import signal
+
+            try:
+                parent = psutil.Process(os.getpid())
+                children = parent.children(recursive=True)
+                for process in children:
+                    process.send_signal(signal.SIGTERM)
+            except psutil.NoSuchProcess:
+                pass
+
+    def _force_termination(self):
+        self._shutdown_worker_processes()
+        import sys
+
+        sys.exit(-1)
 
     def run(
         self,
