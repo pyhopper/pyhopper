@@ -347,7 +347,7 @@ class ProgBar(Callback):
         )
         text_list = []
         for text, f, steps, pruned, nan, elapsed in text_value_quadtuple:
-            value = "x" if f is None else f"{f:0.3g}"
+            value = "x" if f is None else f"{f:0.4g}"
             text_list.append(
                 [
                     text,
@@ -460,7 +460,6 @@ class RunHistory(Callback):
         self.best_per_type[CandidateType.INIT] = self.best_f
 
     def on_evaluate_end(self, candidate: dict, f: float, info: ParamInfo):
-        self.amount_per_type[info.type] += 1
         runtime = info.finished_at - info.sampled_at
         if self.is_better(self.best_f, f):
             self.best_f = f

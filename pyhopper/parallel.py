@@ -81,23 +81,57 @@ def parse_nvidia_smi():
     and a dict mapping device ID to a bool specifying if the device is configured in the Default compute mode.
     returns (None,None,None) if the output of nvidia-smi cannot be parsed
     """
-    res = subprocess.run("nvidia-smi -q -x", shell=True, stdout=subprocess.PIPE)
+    res = subprocess.run("nvidia-smi -L", shell=True, stdout=subprocess.PIPE)
     res = res.stdout.decode("utf-8")
-    if not res.startswith("<?xml"):
+    if not res.startswith("GPU"):
         return None, None, None
-    root = fromstring(res)
+    lines = res.split("\n")
+
     gpu_ids = []
     gpu_names = {}
     gpu_default_modes = {}
-    for gpu_node in root.findall("gpu"):
-        gpu_id = gpu_node.find("minor_number").text
+    for line in lines:
+        if len(line.strip()) == 0:
+            continue
+        idx = line.find(":")
+        if idx <= 4:
+            raise ValueError("Could not parse output of 'nvidia-smi -L'")
+        gpu_id = line[4:idx]
         gpu_ids.append(gpu_id)
-        compute_mode = gpu_node.find("compute_mode").text
-        gpu_name = gpu_node.find("product_name").text
+        idx2 = line.find("(UUID")
+        if idx2 <= idx + 3:
+            raise ValueError("Could not parse output of 'nvidia-smi -L'")
+        gpu_name = line[idx + 2 : idx2 - 1]
         gpu_names[gpu_id] = gpu_name
-        gpu_default_modes[gpu_id] = compute_mode == "Default"
+        gpu_default_modes[gpu_id] = True
         # print(f"GPU [{gpu_id}]: {gpu_name} in mode {compute_mode}")
     return gpu_ids, gpu_names, gpu_default_modes
+
+
+# def parse_nvidia_smi():
+#     """
+#     Parse the IDs, names and compute mode of GPUs on the current machine
+#     :return: A triple of a list of all device IDs, a dict mapping device ID to GPU name,
+#     and a dict mapping device ID to a bool specifying if the device is configured in the Default compute mode.
+#     returns (None,None,None) if the output of nvidia-smi cannot be parsed
+#     """
+#     res = subprocess.run("nvidia-smi -q -x", shell=True, stdout=subprocess.PIPE)
+#     res = res.stdout.decode("utf-8")
+#     if not res.startswith("<?xml"):
+#         return None, None, None
+#     root = fromstring(res)
+#     gpu_ids = []
+#     gpu_names = {}
+#     gpu_default_modes = {}
+#     for gpu_node in root.findall("gpu"):
+#         gpu_id = gpu_node.find("minor_number").text
+#         gpu_ids.append(gpu_id)
+#         compute_mode = gpu_node.find("compute_mode").text
+#         gpu_name = gpu_node.find("product_name").text
+#         gpu_names[gpu_id] = gpu_name
+#         gpu_default_modes[gpu_id] = compute_mode == "Default"
+#         # print(f"GPU [{gpu_id}]: {gpu_name} in mode {compute_mode}")
+#     return gpu_ids, gpu_names, gpu_default_modes
 
 
 def get_gpu_list():
@@ -264,17 +298,13 @@ class TaskManager:
                     f"Cannot use mp_backend ```{mp_backend}``` when using per_gpu mode. "
                     "Valid options are 'dask-cuda' and 'multiprocessing' ('auto' defaults to 'multiprocessing')"
                 )
-        elif isinstance(n_jobs, int):
+        else:
+            n_jobs = int(n_jobs)
             if mp_backend == "auto":
                 mp_backend = "multiprocessing"
             if n_jobs <= 0:
                 n_jobs = len(os.sched_getaffinity(0))
             self._queue_max = n_jobs
-        else:
-            raise ValueError(
-                "Could not parse ```n_jobs``` argument. Valid options are positive integers, -1 (all CPU cores), "
-                "'per_gpu', and '[int] per_gpu' "
-            )
 
         if mp_backend == "dask-cuda":
             # Experimental
