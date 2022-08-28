@@ -65,7 +65,7 @@ class IntParameter(Parameter):
         mutation_strategy,
         sampling_strategy,
     ):
-        super().__init__(init)
+        super().__init__()
         self._lb = lb
         self._ub = ub
         self._multiple_of = multiple_of
@@ -73,6 +73,11 @@ class IntParameter(Parameter):
         self._sampling_strategy = sampling_strategy
 
         self._shape = shape
+
+        if init is None:
+            init = self._round_to_multiple_of(int((ub + lb) / 2))
+            init = self._cast_if_scalar(init)
+        self.initial_value = init
 
     def _cast_if_scalar(self, v):
         if self._shape is None:
@@ -148,6 +153,12 @@ class PowerOfIntParameter(IntParameter):
         self._log_param = IntParameter(
             shape, int(np.log2(lb)), int(np.log2(ub)), None, None, None, None
         )
+        if init is None:
+            init = self._log_param.initial_value
+            init = 2**init
+            init = self._round_to_multiple_of(init)
+            init = self._cast_if_scalar(init)
+            self.initial_value = init
 
     def sample(self):
         if self._sampling_strategy is not None:
@@ -184,7 +195,7 @@ class PowerOfIntParameter(IntParameter):
 
 class ChoiceParameter(Parameter):
     def __init__(self, options, init, is_ordinal, mutation_strategy, sampling_strategy):
-        super().__init__(init)
+        super().__init__()
         self._options = options
         self._is_ordinal = is_ordinal
         self._mutation_strategy = mutation_strategy
@@ -192,6 +203,12 @@ class ChoiceParameter(Parameter):
         self._int_param = IntParameter(
             None, 0, len(options) - 1, None, None, None, None
         )
+        if init is None:
+            if is_ordinal:
+                init = options[(len(options) - 1) // 2]
+            else:
+                init = options[0]
+        self.initial_value = init
 
     def sample(self):
         if self._sampling_strategy is not None:
@@ -226,7 +243,7 @@ class FloatParameter(Parameter):
         mutation_strategy,
         sampling_strategy,
     ):
-        super().__init__(init)
+        super().__init__()
         self._lb = lb
         self._ub = ub
         self._precision = precision
@@ -234,6 +251,12 @@ class FloatParameter(Parameter):
         self._sampling_strategy = sampling_strategy
 
         self._shape = shape
+
+        if init is None:
+            init = (lb + ub) / 2
+            init = self._round_and_clip(init)
+            init = self._cast_if_scalar(init)
+        self.initial_value = init
 
     def _cast_if_scalar(self, v):
         if self._shape is None:
@@ -319,6 +342,11 @@ class LogSpaceFloatParameter(FloatParameter):
         self._log_param = FloatParameter(
             shape, np.log(lb), np.log(ub), None, None, None, None
         )
+        if init is None:
+            init = np.exp(self._log_param.initial_value)
+            init = self._round_and_clip(init)
+            init = self._cast_if_scalar(init)
+        self.initial_value = init
 
     def _round(self, value):
         if self._precision is not None:
