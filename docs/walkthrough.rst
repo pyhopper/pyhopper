@@ -1,15 +1,15 @@
 =========================
-PyHopper's Philosophy
+Why PyHopper?
 =========================
 
-PyHopper's search algorithm
+PyHopper's optimization algorithm
 ----------------------------------------------------
 
 PyHopper uses a two-stage Markov chain Monte Carlo (MCMC) based optimization algorithm.
-In the first **random seeding** stage, PyHopper randomly generates candidates from the entirety of the search space.
+In the first **random search** stage, PyHopper randomly generates candidates from the entirety of the search space.
 The purpose of this stage is to spot the most promising part of the search space quickly.
 
-In the second **local sampling** stage, PyHopper mutates the current best parameter to obtain a slightly different candidate.
+In the second **local search** stage, PyHopper mutates the current best parameter to obtain a slightly different candidate.
 If the newly generated parameter is better than its predecessor, it is stored as the new best parameter.
 Otherwise, it will be discarded.
 The randomness of the mutation step is controlled by a temperature parameter that decreases over the algorithm's runtime and gradually narrows down the searched area.
@@ -17,7 +17,7 @@ The randomness of the mutation step is controlled by a temperature parameter tha
 .. figure:: img/sampling.webp
     :align: center
 
-    PyHopper's two MCMC sampling strategies applied to a 2D example problem
+    The two phases of PyHopper's MCMC sampling strategy applied to a 2D example problem
 
 As evaluating a candidate is costly, a hashing routine takes care that duplicate candidates are evaluated only once.
 This 2-stage MCMC process allows PyHopper to explore and exploit parameter spaces with millions of dimensions efficiently.
