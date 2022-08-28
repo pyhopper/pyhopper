@@ -83,6 +83,8 @@ class IntParameter(Parameter):
         if self._shape is None:
             # Cast to python integer
             return int(v)
+        elif not isinstance(v, np.ndarray):
+            return np.zeros(self._shape, dtype=np.int64) + v  # broadcast to shape
         return v
 
     def _round_to_multiple_of(self, v):
@@ -253,7 +255,14 @@ class FloatParameter(Parameter):
         self._shape = shape
 
         if init is None:
-            init = (lb + ub) / 2
+            if lb is None and ub is None:
+                init = 0
+            elif lb is None:
+                init = ub
+            elif ub is None:
+                init = lb
+            else:
+                init = (lb + ub) / 2
             init = self._round_and_clip(init)
             init = self._cast_if_scalar(init)
         self.initial_value = init
@@ -262,6 +271,8 @@ class FloatParameter(Parameter):
         if self._shape is None:
             # Cast to python float
             return float(v)
+        elif not isinstance(v, np.ndarray):
+            return np.zeros(self._shape, dtype=np.float32) + v  # broadcast to shape
         return v
 
     def _round(self, value):
