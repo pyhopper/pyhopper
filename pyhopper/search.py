@@ -523,7 +523,7 @@ class Search:
         endless_mode: bool = False,
         seeding_steps: Optional[int] = None,
         seeding_timeout: Union[int, float, str, None] = None,
-        seeding_ratio: Optional[float] = 0.3,
+        seeding_ratio: Optional[float] = 0.25,
         pruner=None,
         n_jobs=1,
         quiet=False,
