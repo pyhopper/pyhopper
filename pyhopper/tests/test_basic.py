@@ -306,7 +306,7 @@ def test_add_m():
         }
     )
     search += {"b": 2}
-    search.sweep("a", [2, 5])
+    # search.sweep("a", [2, 5])
     search.run(of_add, direction="max", steps=15, seeding_steps=10)
 
 
@@ -315,7 +315,7 @@ def of_set(param):
     return param["a"] * param["b"]
 
 
-def test_add_m():
+def test_add_m2():
     search = pyhopper.Search(
         {
             "a": pyhopper.int(-10, 10, init=5),
@@ -327,4 +327,4 @@ def test_add_m():
 
 
 if __name__ == "__main__":
-    test_simple1()
+    test_freeze()

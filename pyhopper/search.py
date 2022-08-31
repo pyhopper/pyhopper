@@ -114,6 +114,8 @@ def register_custom(
         raise ValueError(
             f"Could not create custom parameter, must either provide an initial value or a seeding strategy function"
         )
+    if init is None:
+        init = seeding_fn()
     param = CustomParameter(init, mutation_fn, seeding_fn)
     return param
 
@@ -228,11 +230,10 @@ class Search:
 
         parameters = merge_dicts(parameters, kwargs)
 
-        self._params = {}
-        self._best_solution = {}
-        self._free_params = {}
-        for k, v in parameters.items():
-            self._register_parameter(k, v)
+        self._params = parameters
+        self._best_solution = self._get_initial_solution(self._params)
+
+        self._free_param_count = self._count_free_parameters()
         self._best_f = None
         self._f_cache = EvaluationCache()
         self._run_context = None
@@ -248,41 +249,51 @@ class Search:
         return self
 
     def __setitem__(self, key, value):
-        if key in self._free_params.keys():
-            del self._free_params[key]
-        self._register_parameter(key, value)
+        self._params[key] = value
+        self._free_param_count = self._count_free_parameters()
+        if self._best_f is None:
+            # Special case if setitem is called before run
+            self._best_solution[key] = self._get_initial_solution(value)
 
-    def _register_parameter(self, name: str, param: Any) -> None:
+    def _get_initial_solution(self, param):
         if isinstance(param, Parameter):
-            self._params[name] = param
-            if self._best_solution.get(name) is None:
-                self._best_solution[name] = param.initial_value
-            self._free_params[name] = param
+            return param.initial_value
+        elif isinstance(param, dict):
+            return {k: self._get_initial_solution(v) for k, v in param.items()}
+        elif isinstance(param, list):
+            return [self._get_initial_solution(v) for v in param]
         else:
-            self._params[name] = param
-            self._best_solution[name] = param
+            return param
 
-    def overwrite_best(self, candidate: dict, f: Optional[float] = None) -> None:
-        """Overwrites the current best solution with the provided parameter and objective function value
+    # def overwrite_best(self, candidate: dict, f: Optional[float] = None) -> None:
+    #     """Overwrites the current best solution with the provided parameter and objective function value
+    #
+    #     :param candidate: Parameter values that will be set as current best candidate
+    #     :param f: Objective function value that will be set as the current best value
+    #     """
+    #     for k, v in self._params.items():
+    #         cv = candidate.get(k)
+    #         if cv is not None:
+    #             self._best_solution[k] = cv
+    #         else:
+    #             init = self._best_solution.get(k)
+    #             if init is None:
+    #                 raise ValueError(f"Parameter '{k}' has no initial value.")
+    #     self._best_f = f
 
-        :param candidate: Parameter values that will be set as current best candidate
-        :param f: Objective function value that will be set as the current best value
-        """
-        for k, v in self._params.items():
-            cv = candidate.get(k)
-            if cv is not None:
-                self._best_solution[k] = cv
-            else:
-                init = self._best_solution.get(k)
-                if init is None:
-                    raise ValueError(f"Parameter '{k}' has no initial value.")
-        self._best_f = f
+    def _count_free_parameters(self):
+        return self._count_free_parameters_rec(self._params)
 
-    def _update_free_params(self):
-        free_params = []
-        for k, v in self._params.items():
-            if isinstance(v, Parameter):
-                free_params.append(k)
+    def _count_free_parameters_rec(self, node):
+        free_params = 0
+        if isinstance(node, Parameter):
+            free_params = 1
+        elif isinstance(node, dict):
+            for k, v in node.items():
+                free_params += self._count_free_parameters_rec(v)
+        elif isinstance(node, list):
+            for v in node:
+                free_params += self._count_free_parameters_rec(v)
         return free_params
 
     def forget_cached(self, candidate: dict):
@@ -296,95 +307,122 @@ class Search:
         """Forgets all values of already evaluated parameters."""
         self._f_cache.clear()
 
+    def _enqueue_rec(self, node_best, node_candidate):
+        if isinstance(node_best, dict):
+            for k in node_candidate.keys():
+                if k not in node_best.keys():
+                    raise ValueError(
+                        f"Parameter guess for '{k}' was provided but has not been registered in 'Search.__init__'. You can "
+                        f"register '{k}' as a dummy parameter by passing '...= Search({k}=None, ...)'."
+                    )
+
+            candidate = {}
+            for k, v in node_best.items():
+                if k in node_candidate.keys():
+                    candidate[k] = self._enqueue_rec(node_best[k], node_candidate[k])
+                else:
+                    candidate[k] = node_best[k]
+            return candidate
+        elif isinstance(node_best, list):
+            candidate = []
+            for i in range(len(node_best)):
+                if len(node_candidate) > i:
+                    candidate.append(self._enqueue_rec(node_best[i], node_candidate[i]))
+                else:
+                    candidate.append(node_best[i])
+            return candidate
+        else:
+            return node_candidate
+
     def enqueue(self, candidate: dict) -> None:
         """
         Queues a guess for the optimal parameters to the search queue.
 
         :param candidate: dict representing a subset of the parameters assigned to a value
         """
-        added_candidate = {}
-        for k, v in self._params.items():
-            cv = candidate.get(k)
-            if cv is not None:
-                added_candidate[k] = cv
-            else:
-                init = self._best_solution.get(k)
-                if init is not None:
-                    added_candidate[k] = init
-                else:
-                    raise ValueError(
-                        f"Parameter '{k}' has no initial value and is not provided by the candidate solution."
-                    )
-        # Find typos and other bugs
-        for k in candidate.keys():
-            if k not in self._params:
-                raise ValueError(
-                    f"Parameter guess for '{k}' was provided but has not been registered in 'Search.__init__'. You can "
-                    f"register '{k}' as a dummy parameter by passing '...= Search({k}=None, ...)'."
-                )
+        added_candidate = self._enqueue_rec(self._best_solution, candidate)
+
         self._manually_queued_candidates.append(added_candidate)
 
-    def sweep(self, name: str, candidate_values: list) -> None:
-        """
+    # def sweep(self, name: str, candidate_values: list) -> None:
+    #     """
+    #
+    #     :param name:
+    #     :param candidate_values:
+    #     """
+    #     if name not in self._params.keys():
+    #         raise ValueError(f"Could not find '{name}' in set of registered parameters")
+    #     for value in candidate_values:
+    #         added_candidate = {}
+    #         for k, v in self._params.items():
+    #             if k == name:
+    #                 added_candidate[k] = value
+    #                 continue
+    #             init = self._best_solution.get(k)
+    #             if init is not None:
+    #                 added_candidate[k] = init
+    #             else:
+    #                 raise ValueError(f"Parameter '{k}' has no initial value.")
+    #         self._manually_queued_candidates.append(added_candidate)
 
-        :param name:
-        :param candidate_values:
-        """
-        if name not in self._params.keys():
-            raise ValueError(f"Could not find '{name}' in set of registered parameters")
-        for value in candidate_values:
-            added_candidate = {}
-            for k, v in self._params.items():
-                if k == name:
-                    added_candidate[k] = value
-                    continue
-                init = self._best_solution.get(k)
-                if init is not None:
-                    added_candidate[k] = init
-                else:
-                    raise ValueError(f"Parameter '{k}' has no initial value.")
-            self._manually_queued_candidates.append(added_candidate)
+    # def _fill_missing_init_values(self, node=None, node_best=None):
+    #     if node is None:
+    #         node = self._params
+    #         node_best = self._best_solution
+    #
+    #     if isinstance(node, Parameter):
+    #
+    #     elif isinstance(node, dict):
+    #         return {k: self.sample_solution(v) for k, v in node.items()}
+    #     elif isinstance(node, list):
+    #         return [self.sample_solution(v) for v in node]
+    #     else:
 
-    def _fill_missing_init_values(self):
-        for k, v in self._params.items():
-            if isinstance(v, Parameter) and self._best_solution[k] is None:
-                self._best_solution[k] = v.sample()
+    def sample_solution(self, node=None):
+        if node is None:
+            node = self._params
+        if isinstance(node, Parameter):
+            return node.sample()
+        elif isinstance(node, dict):
+            return {k: self.sample_solution(v) for k, v in node.items()}
+        elif isinstance(node, list):
+            return [self.sample_solution(v) for v in node]
+        else:
+            return node
 
-    def sample_solution(self):
-        if len(self._free_params) == 0:
-            raise ValueError(
-                "There are not parameters to optimize (search space does not contain any `pyhopper.Parameter` instance)"
-            )
+    def mutate_from_best(self, temperature, node=None, best_node=None, bitmask=None):
 
-        candidate = {}
-        for (k, v) in self._params.items():
-            if isinstance(v, Parameter):
-                candidate[k] = v.sample()
-            else:
-                candidate[k] = v
-        return candidate
+        if node is None:
+            temperature = float(np.clip(temperature, 0, 1))
+            node = self._params
+            best_node = self._best_solution
+            # With decreasing temperature we resample/mutate fewer parameters
+            amount_to_mutate = int(
+                max(round(temperature * self.free_param_count), 1)
+            )  # at least 1, at most all
+            bitmask = [i < amount_to_mutate for i in range(self.free_param_count)]
+            np.random.default_rng().shuffle(bitmask)
 
-    def mutate_from_best(self, temperature):
-        if len(self._free_params) == 0:
-            raise ValueError(
-                "There are not parameters to optimize (search space does not contain any `pyhopper.Parameter` instance)"
-            )
-
-        temperature = np.clip(temperature, 0, 1)
-        candidate = {}
-        for (k, v) in self._params.items():
-            candidate[k] = self._best_solution[k]
-
-        # With decreasing temperature we resample/mutate fewer parameters
-        amount_to_mutate = int(
-            max(round(temperature * len(self._free_params)), 1)
-        )  # at least 1, at most all
-        params_to_mutate = np.random.default_rng().choice(
-            list(self._free_params.keys()), size=amount_to_mutate, replace=False
-        )
-        for k in params_to_mutate:
-            candidate[k] = self._params[k].mutate(candidate[k], temperature)
-        return candidate
+        if isinstance(node, Parameter):
+            p = bitmask.pop()
+            # consume one bit -> tells us if we should mutate or not
+            return node.mutate(best_node, temperature=temperature) if p else best_node
+        elif isinstance(node, dict):
+            return {
+                k: self.mutate_from_best(
+                    temperature, node=node[k], best_node=best_node[k], bitmask=bitmask
+                )
+                for k, v in node.items()
+            }
+        elif isinstance(node, list):
+            return [
+                self.mutate_from_best(
+                    temperature, node=node[i], best_node=best_node[i], bitmask=bitmask
+                )
+                for i in range(len(node))
+            ]
+        else:
+            return node
 
     def _submit_candidate(self, objective_function, candidate_type, candidate, kwargs):
         param_info = ParamInfo(candidate_type, sampled_at=time.time())
@@ -635,7 +673,7 @@ class Search:
 
         if self._best_f is None and self.manual_queue_count == 0:
             # Evaluate initial guess, this gives the user some estimate of how much PyHopper could tune the parameters
-            self._fill_missing_init_values()
+            # self._fill_missing_init_values()
             self._submit_candidate(
                 objective_function,
                 CandidateType.INIT,
@@ -650,7 +688,7 @@ class Search:
         while not schedule.is_timeout(
             self._run_context.run_history.estimated_candidate_runtime
         ):
-            if len(self._free_params) == 0 and self.manual_queue_count == 0:
+            if self.free_param_count == 0 and self.manual_queue_count == 0:
                 raise ValueError(
                     "There are not parameters to tune (search space does not contain any `pyhopper.Parameter` instance)"
                 )
@@ -761,6 +799,11 @@ class Search:
     def manual_queue_count(self) -> int:
         """Number of candidate parameters that are manually added by the user and will be evaluated first when run is called"""
         return len(self._manually_queued_candidates)
+
+    @property
+    def free_param_count(self) -> int:
+        """Number of free (optimizable) parameters"""
+        return self._free_param_count
 
     @property
     def checkpoint_path(self) -> Optional[str]:

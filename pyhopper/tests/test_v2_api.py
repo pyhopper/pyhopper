@@ -33,7 +33,7 @@ def test_manual():
     search += {"lr": 0.2}
     search += {"lr": 0.3}
 
-    r1 = search.run(of, direction="max", steps=3)
+    r1 = search.run(of, direction="max", steps=search.manual_queue_count)
     assert "lr" in r1.keys()
 
 
@@ -128,6 +128,21 @@ def test_fmt():
     r1 = search.run(of_ul, direction="max", steps=20)
 
 
+def of_nested(param):
+    assert param["group1"]["x"] == 1
+    return -np.square(param["group1"]["lr"] - 3e-4) * 10 + param["group2"]["d"]
+
+
+def test_nested():
+    search = pyhopper.Search(
+        group1={"lr": pyhopper.float(0, 1), "x": 1}, group2={"d": pyhopper.int(0, 10)}
+    )
+
+    r1 = search.run(of_nested, direction="max", steps=10)
+    assert "lr" in r1["group1"].keys()
+
+
 if __name__ == "__main__":
     # test_checkpoint()
-    test_checkpoint_pruner()
+    # test_checkpoint_pruner()
+    test_nested()
