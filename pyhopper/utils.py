@@ -141,14 +141,29 @@ class NTimesEvaluator:
             return self._reduction(results)
 
 
+def _contains_number(text):
+    for c in ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]:
+        if c in text:
+            return True
+    return False
+
+
 def parse_timeout(timeout: Union[int, float, str]):
     if isinstance(timeout, float) or isinstance(timeout, int):
         return timeout
+    orig_timeout = timeout
     if " " in timeout:
         # 5d 1h or 5d 1:0:0 pattern
         parts = timeout.split(" ")
+
+        merged_parts = [parts[0]]
+        for i in range(1, len(parts)):
+            if not _contains_number(parts[i]):
+                merged_parts[-1] += parts[i]
+            else:
+                merged_parts.append(parts[i])
         total_time = 0
-        for part in parts:
+        for part in merged_parts:
             total_time += parse_timeout(part)
         return total_time
     elif ":" in timeout:
@@ -159,24 +174,28 @@ def parse_timeout(timeout: Union[int, float, str]):
             total_time *= 60
             total_time += int(part)
         return total_time
+    elif "w" in timeout:
+        timeout = timeout.replace("weeks", "").replace("week", "").replace("w", "")
+        if timeout.strip() == "":
+            raise ValueError(
+                f"Could not parse substring '{orig_timeout}' while attempting to parse weeks in timeout-string. "
+            )
+        return int(timeout) * 60 * 60 * 24 * 7
     elif "d" in timeout:
         timeout = timeout.replace("days", "").replace("day", "").replace("d", "")
         if timeout.strip() == "":
             raise ValueError(
-                "Could not parse number of days in timeout-string. Hint: no spaces are allowed between the number and "
-                "the units, e.g., 3days "
+                f"Could not parse substring '{orig_timeout}' while attempting to parse days in timeout-string. "
             )
         return int(timeout) * 60 * 60 * 24
     elif "h" in timeout:
         timeout = timeout.replace("hours", "").replace("hour", "").replace("h", "")
         if timeout.strip() == "":
             raise ValueError(
-                "Could not parse number of hours in timeout-string. Hint: no spaces are allowed between the number "
-                "and the units, e.g., 12h "
+                f"Could not parse substring '{orig_timeout}' while attempting to parse hours in timeout-string. "
             )
         return int(timeout) * 60 * 60
     elif "m" in timeout:
-        # TODO: maybe just get rid of the non-digit characters
         timeout = (
             timeout.replace("minutes", "")
             .replace("minute", "")
@@ -186,12 +205,10 @@ def parse_timeout(timeout: Union[int, float, str]):
         )
         if timeout.strip() == "":
             raise ValueError(
-                "Could not parse number of minutes in timeout-string. Hint: no spaces are allowed between the number "
-                "and the units, e.g., 60min "
+                f"Could not parse substring '{orig_timeout}' while attempting to parse minutes in timeout-string. "
             )
         return int(timeout) * 60
     else:
-        # TODO: maybe just get rid of the non-digit characters
         timeout = (
             timeout.replace("seconds", "")
             .replace("second", "")
@@ -201,8 +218,7 @@ def parse_timeout(timeout: Union[int, float, str]):
         )
         if timeout.strip() == "":
             raise ValueError(
-                "Could not parse number of seconds in timeout-string. Hint: no spaces are allowed between the number "
-                "and the units, e.g., 10s "
+                f"Could not parse substring '{orig_timeout}' while attempting to parse second in timeout-string. "
             )
         return int(timeout)
 

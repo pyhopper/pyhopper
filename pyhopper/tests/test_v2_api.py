@@ -137,7 +137,17 @@ def test_nested():
     search = pyhopper.Search(
         group1={"lr": pyhopper.float(0, 1), "x": 1}, group2={"d": pyhopper.int(0, 10)}
     )
+    r1 = search.run(of_nested, direction="max", steps=10)
+    assert "lr" in r1["group1"].keys()
 
+
+def test_nested_raise():
+    search = pyhopper.Search(
+        group1={"lr": pyhopper.float(0, 1), "x": 1}, group2={"d": pyhopper.int(0, 10)}
+    )
+    with pytest.raises(ValueError):
+        search += {"group2": 1}
+    search += {"group2": {"d": 1}}
     r1 = search.run(of_nested, direction="max", steps=10)
     assert "lr" in r1["group1"].keys()
 
@@ -145,4 +155,4 @@ def test_nested():
 if __name__ == "__main__":
     # test_checkpoint()
     # test_checkpoint_pruner()
-    test_nested()
+    test_nested_raise()

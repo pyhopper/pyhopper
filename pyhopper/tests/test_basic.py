@@ -23,7 +23,13 @@ from pyhopper.utils import parse_timeout
 
 def test_parse_timeout():
     assert parse_timeout("1723") == 1723
+    assert parse_timeout("1day") == 86400
+    assert parse_timeout("1week") == 7 * 86400
+    assert parse_timeout("2 week") == 2 * 7 * 86400
     assert parse_timeout("1d") == 86400
+    assert parse_timeout("5d ") == 5 * 86400
+    assert parse_timeout("5 days") == 5 * 86400
+    assert parse_timeout("5 days 24h") == 6 * 86400
     assert parse_timeout("1d 2h") == 93600
     assert parse_timeout("2h 60min") == 10800
     assert parse_timeout("1h 30min") == 5400
@@ -34,6 +40,8 @@ def test_parse_timeout():
     assert parse_timeout("1:1:30") == 3690
     assert parse_timeout("1:01:30") == 3690
     assert parse_timeout("1h 1m 30s") == 3690
+    assert parse_timeout("1 h 1 min 30s") == 3690
+    assert parse_timeout("1 h 1 m 30 s") == 3690
 
 
 def of(param, x=None):

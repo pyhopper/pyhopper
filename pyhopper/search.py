@@ -309,6 +309,10 @@ class Search:
 
     def _enqueue_rec(self, node_best, node_candidate):
         if isinstance(node_best, dict):
+            if not isinstance(node_candidate, dict):
+                raise ValueError(
+                    f"Parameter guess '{node_candidate}' does not match the tree structure '{node_best.keys()}' registered in 'Search.__init__'"
+                )
             for k in node_candidate.keys():
                 if k not in node_best.keys():
                     raise ValueError(
