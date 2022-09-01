@@ -382,51 +382,56 @@ class Search:
     #         return [self.sample_solution(v) for v in node]
     #     else:
 
-    def sample_solution(self, node=None):
-        if node is None:
-            node = self._params
+    def _sample_solution_rec(self, node):
         if isinstance(node, Parameter):
             return node.sample()
         elif isinstance(node, dict):
-            return {k: self.sample_solution(v) for k, v in node.items()}
+            return {k: self._sample_solution_rec(v) for k, v in node.items()}
         elif isinstance(node, list):
-            return [self.sample_solution(v) for v in node]
+            return [self._sample_solution_rec(v) for v in node]
         else:
             return node
 
-    def mutate_from_best(self, temperature, node=None, best_node=None, bitmask=None):
+    def sample_solution(self):
+        return self._sample_solution_rec(self._params)
 
-        if node is None:
-            temperature = float(np.clip(temperature, 0, 1))
-            node = self._params
-            best_node = self._best_solution
-            # With decreasing temperature we resample/mutate fewer parameters
-            amount_to_mutate = int(
-                max(round(temperature * self.free_param_count), 1)
-            )  # at least 1, at most all
-            bitmask = [i < amount_to_mutate for i in range(self.free_param_count)]
-            np.random.default_rng().shuffle(bitmask)
-
+    def _mutate_from_best_rec(
+        self, temperature, node=None, best_node=None, bitmask=None
+    ):
         if isinstance(node, Parameter):
             p = bitmask.pop()
             # consume one bit -> tells us if we should mutate or not
             return node.mutate(best_node, temperature=temperature) if p else best_node
         elif isinstance(node, dict):
             return {
-                k: self.mutate_from_best(
+                k: self._mutate_from_best_rec(
                     temperature, node=node[k], best_node=best_node[k], bitmask=bitmask
                 )
                 for k, v in node.items()
             }
         elif isinstance(node, list):
             return [
-                self.mutate_from_best(
+                self._mutate_from_best_rec(
                     temperature, node=node[i], best_node=best_node[i], bitmask=bitmask
                 )
                 for i in range(len(node))
             ]
         else:
             return node
+
+    def mutate_from_best(self, temperature):
+
+        temperature = float(np.clip(temperature, 0, 1))
+        node = self._params
+        best_node = self._best_solution
+        # With decreasing temperature we resample/mutate fewer parameters
+        amount_to_mutate = int(
+            max(round(temperature * self.free_param_count), 1)
+        )  # at least 1, at most all
+        bitmask = [i < amount_to_mutate for i in range(self.free_param_count)]
+        np.random.default_rng().shuffle(bitmask)
+
+        return self._mutate_from_best_rec(temperature, node, best_node, bitmask)
 
     def _submit_candidate(self, objective_function, candidate_type, candidate, kwargs):
         param_info = ParamInfo(candidate_type, sampled_at=time.time())

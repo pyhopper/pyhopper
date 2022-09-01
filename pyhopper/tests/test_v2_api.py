@@ -135,7 +135,9 @@ def of_nested(param):
 
 def test_nested():
     search = pyhopper.Search(
-        group1={"lr": pyhopper.float(0, 1), "x": 1}, group2={"d": pyhopper.int(0, 10)}
+        group1={"lr": pyhopper.float(0, 1), "x": 1},
+        group2={"d": pyhopper.int(0, 10), "z": None},
+        x=None,
     )
     r1 = search.run(of_nested, direction="max", steps=10)
     assert "lr" in r1["group1"].keys()
@@ -155,4 +157,4 @@ def test_nested_raise():
 if __name__ == "__main__":
     # test_checkpoint()
     # test_checkpoint_pruner()
-    test_nested_raise()
+    test_nested()
