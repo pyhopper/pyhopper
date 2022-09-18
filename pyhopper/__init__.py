@@ -23,6 +23,7 @@ from pyhopper.search import register_float as float
 from pyhopper.search import register_int as int
 from pyhopper.search import register_custom as custom
 from pyhopper.search import register_choice as choice
+from pyhopper.search import register_bool as bool
 from pyhopper.utils import NTimesEvaluator as wrap_n_times
 from pyhopper.utils import parse_timeout as parse_timeout
 from pyhopper.utils import ParamInfo

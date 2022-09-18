@@ -19,7 +19,12 @@ import time
 import pytest
 
 import pyhopper
-from pyhopper.utils import parse_timeout, store_dict, load_dict
+from pyhopper.utils import (
+    parse_timeout,
+    store_dict,
+    load_dict,
+    convert_to_checkpoint_path,
+)
 
 
 def of(param):
@@ -154,7 +159,16 @@ def test_nested_raise():
     assert "lr" in r1["group1"].keys()
 
 
+def test_checkpoint_path():
+    x = convert_to_checkpoint_path("/tmp/")
+    x2 = convert_to_checkpoint_path(x)
+    print("x ", x)
+    print("x2", x2)
+    assert x == x2
+
+
 if __name__ == "__main__":
     # test_checkpoint()
     # test_checkpoint_pruner()
-    test_nested()
+    # test_nested()
+    test_checkpoint_path()

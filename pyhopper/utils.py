@@ -82,14 +82,13 @@ def load_dict(filename):
 
 
 def convert_to_checkpoint_path(checkpoint_path):
+    actual_path = checkpoint_path
     if os.path.isdir(checkpoint_path):
         for i in range(100000):
-            checkpoint_path = os.path.join(
-                checkpoint_path, f"pyhopper_run_{i:05d}.ckpt"
-            )
-            if not os.path.isfile(checkpoint_path):
+            actual_path = os.path.join(checkpoint_path, f"pyhopper_run_{i:05d}.ckpt")
+            if not os.path.isfile(actual_path):
                 break
-    return checkpoint_path
+    return actual_path
 
 
 class CandidateType(Enum):

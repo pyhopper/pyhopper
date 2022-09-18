@@ -143,6 +143,23 @@ def register_choice(
     return param
 
 
+def register_bool(
+    init: Optional[Any] = None,
+    mutation_fn: Optional[FunctionType] = None,
+    seeding_fn: Optional[FunctionType] = None,
+) -> ChoiceParameter:
+    """Creates a new choice parameter
+
+    :param init: Initial value of the parameter. If None it will be randomly sampled.
+    :param mutation_fn: Setting this argument to a callable overwrites the default local sampling strategy. The callback gets called with the value
+        of the the current best solution as argument and returns a mutated value
+    :param seeding_fn: Setting this argument to a callable overwrites the default random seeding strategy
+    :return:
+    """
+    param = ChoiceParameter([True, False], init, False, mutation_fn, seeding_fn)
+    return param
+
+
 def register_float(
     lb: Optional[Union[int, float, np.ndarray]] = None,
     ub: Optional[Union[int, float, np.ndarray]] = None,
