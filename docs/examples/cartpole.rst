@@ -36,7 +36,7 @@ For instance
     policy = search.run(
         pyhopper.wrap_n_times(replay_policy, n=5),
         direction="max",
-        timeout="1s",
+        runtime="1s",
         n_jobs=4,
     )
 

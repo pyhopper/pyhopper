@@ -18,30 +18,30 @@ import time
 import pytest
 
 import pyhopper
-from pyhopper.utils import parse_timeout
+from pyhopper.utils import parse_runtime
 
 
-def test_parse_timeout():
-    assert parse_timeout("1723") == 1723
-    assert parse_timeout("1day") == 86400
-    assert parse_timeout("1week") == 7 * 86400
-    assert parse_timeout("2 week") == 2 * 7 * 86400
-    assert parse_timeout("1d") == 86400
-    assert parse_timeout("5d ") == 5 * 86400
-    assert parse_timeout("5 days") == 5 * 86400
-    assert parse_timeout("5 days 24h") == 6 * 86400
-    assert parse_timeout("1d 2h") == 93600
-    assert parse_timeout("2h 60min") == 10800
-    assert parse_timeout("1h 30min") == 5400
-    assert parse_timeout("1:30") == 90
-    assert parse_timeout("1m 30s") == 90
-    assert parse_timeout("1m 30sec") == 90
-    assert parse_timeout("1min 30sec") == 90
-    assert parse_timeout("1:1:30") == 3690
-    assert parse_timeout("1:01:30") == 3690
-    assert parse_timeout("1h 1m 30s") == 3690
-    assert parse_timeout("1 h 1 min 30s") == 3690
-    assert parse_timeout("1 h 1 m 30 s") == 3690
+def test_parse_runtime():
+    assert parse_runtime("1723") == 1723
+    assert parse_runtime("1day") == 86400
+    assert parse_runtime("1week") == 7 * 86400
+    assert parse_runtime("2 week") == 2 * 7 * 86400
+    assert parse_runtime("1d") == 86400
+    assert parse_runtime("5d ") == 5 * 86400
+    assert parse_runtime("5 days") == 5 * 86400
+    assert parse_runtime("5 days 24h") == 6 * 86400
+    assert parse_runtime("1d 2h") == 93600
+    assert parse_runtime("2h 60min") == 10800
+    assert parse_runtime("1h 30min") == 5400
+    assert parse_runtime("1:30") == 90
+    assert parse_runtime("1m 30s") == 90
+    assert parse_runtime("1m 30sec") == 90
+    assert parse_runtime("1min 30sec") == 90
+    assert parse_runtime("1:1:30") == 3690
+    assert parse_runtime("1:01:30") == 3690
+    assert parse_runtime("1h 1m 30s") == 3690
+    assert parse_runtime("1 h 1 min 30s") == 3690
+    assert parse_runtime("1 h 1 m 30 s") == 3690
 
 
 def of(param, x=None):
@@ -168,7 +168,7 @@ def test_float_register():
     assert "lr3" in r1.keys()
     assert "lr4" in r1.keys()
     assert "lr5" in r1.keys()
-    r2 = search.run(ofall, direction="max", timeout=0.5)
+    r2 = search.run(ofall, direction="max", runtime=0.5)
     assert "lr" in r1.keys()
     assert "lr2" in r1.keys()
     assert "lr3" in r1.keys()
@@ -219,8 +219,8 @@ def test_choice_register():
             "lr3": pyhopper.choice(["a", "b", "c"], is_ordinal=True),
         }
     )
-    # r1 = search.run(of, seeding_timeout="1h", timeout="1s", n_jobs=2)
-    r1 = search.run(of, direction="max", seeding_timeout="1h", steps=10, n_jobs=5)
+    # r1 = search.run(of, seeding_runtime="1h", runtime="1s", n_jobs=2)
+    r1 = search.run(of, direction="max", seeding_runtime="1h", steps=10, n_jobs=5)
     assert "lr" in r1.keys()
 
 
@@ -236,7 +236,7 @@ def test_parallelization():
         }
     )
     start = time.time()
-    r1 = search.run(of, direction="max", seeding_timeout="1h", steps=10, n_jobs=5)
+    r1 = search.run(of, direction="max", seeding_runtime="1h", steps=10, n_jobs=5)
     assert time.time() - start < 3
 
 

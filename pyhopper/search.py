@@ -35,7 +35,7 @@ import time
 
 from .run_context import ScheduledRun, RunContext
 from .utils import (
-    parse_timeout,
+    parse_runtime,
     sanitize_bounds,
     infer_shape,
     time_to_pretty_str,
@@ -582,11 +582,11 @@ class Search:
         self,
         objective_function,
         direction: str = "maximize",
-        timeout: Union[int, float, str, None] = None,
+        runtime: Union[int, float, str, None] = None,
         steps: Union[int, str, None] = None,
         endless_mode: bool = False,
         seeding_steps: Optional[int] = None,
-        seeding_timeout: Union[int, float, str, None] = None,
+        seeding_runtime: Union[int, float, str, None] = None,
         seeding_ratio: Optional[float] = 0.25,
         pruner=None,
         n_jobs=1,
@@ -608,11 +608,11 @@ class Search:
             Can be a generator function that yields estimates of the true objective function to prune unpromising candidates early on.
         :param direction: String defining if the objective function should be minimized or maximize
             (admissible values are 'min','minimize', or 'max','maximize')
-        :param timeout: Search timeout in seconds or a string, e.g., "1h 30min", "4d 12h".
-        :param steps: Number of search steps. Must be left None if a value for `timeout` is provided.
-        :param endless_mode: Setting this argument to True runs the search until the user interrupts (via CTRL+C). Must be left Noen if a value for `timeout` or `steps` is provided
+        :param runtime: Search runtime in seconds or a string, e.g., "1h 30min", "4d 12h".
+        :param steps: Number of search steps. Must be left None if a value for `runtime` is provided.
+        :param endless_mode: Setting this argument to True runs the search until the user interrupts (via CTRL+C). Must be left Noen if a value for `runtime` or `steps` is provided
         :param seeding_steps:
-        :param seeding_timeout:
+        :param seeding_runtime:
         :param seeding_ratio:
         :param pruner: A `pyhopper.pruners.Pruner` instance that cancels the evaluation of unpromising candidates.
             If a pruner is provided, the objective function must be a generator that yield intermediate estimates of the
@@ -647,10 +647,10 @@ class Search:
         self._caught_exception = False
         schedule = ScheduledRun(
             steps,
-            timeout,
+            runtime,
             endless_mode,
             seeding_steps=seeding_steps,
-            seeding_timeout=seeding_timeout,
+            seeding_runtime=seeding_runtime,
             seeding_ratio=seeding_ratio,
             start_temperature=start_temperature,
             end_temperature=end_temperature,

@@ -20,7 +20,7 @@ from pyhopper.utils import (
     CandidateType,
     steps_to_pretty_str,
     time_to_pretty_str,
-    parse_timeout,
+    parse_runtime,
 )
 import time
 
@@ -29,32 +29,32 @@ class ScheduledRun:
     def __init__(
         self,
         step_limit=None,
-        timeout=None,
+        runtime=None,
         endless_mode=False,
         seeding_steps=None,
-        seeding_timeout=None,
+        seeding_runtime=None,
         seeding_ratio=None,
         start_temperature=1.0,
         end_temperature=0.0,
     ):
-        if step_limit is None and timeout is None and endless_mode is False:
+        if step_limit is None and runtime is None and endless_mode is False:
             raise ValueError(
-                "Must specify either 'max_steps', 'timeout', or 'endless_mode'"
+                "Must specify either 'max_steps', 'runtime', or 'endless_mode'"
             )
-        if (step_limit is not None or timeout is not None) and endless_mode:
+        if (step_limit is not None or runtime is not None) and endless_mode:
             raise ValueError(
-                "Cannot specify both 'endless_mode' and 'max_steps'/'timeout' at the same time.'"
+                "Cannot specify both 'endless_mode' and 'max_steps'/'runtime' at the same time.'"
             )
-        if step_limit is not None and timeout is not None:
+        if step_limit is not None and runtime is not None:
             raise ValueError(
-                "Cannot specify both 'max_steps' and 'timeout' at the same time, one of the two must be None"
+                "Cannot specify both 'max_steps' and 'runtime' at the same time, one of the two must be None"
             )
         self._step_limit = step_limit
         self._endless_mode = endless_mode
-        self._timeout = None
-        if timeout is not None:
-            self._timeout = parse_timeout(timeout)
-            # print(f"Parsed {timeout} to {self._timeout} seconds")
+        self._runtime = None
+        if runtime is not None:
+            self._runtime = parse_runtime(runtime)
+            # print(f"Parsed {runtime} to {self._runtime} seconds")
         self._start_time = time.time()
         self._step = 0
         self._temp_start_units = 0
@@ -62,25 +62,25 @@ class ScheduledRun:
         self._start_temperature = start_temperature
         self._end_temperature = end_temperature
 
-        if seeding_steps is not None and seeding_timeout is not None:
+        if seeding_steps is not None and seeding_runtime is not None:
             raise ValueError(
-                "Can only specify one of 'seeding_steps' and 'seeding_timeout' at the same time, one of the two must be None"
+                "Can only specify one of 'seeding_steps' and 'seeding_runtime' at the same time, one of the two must be None"
             )
 
-        self._seeding_timeout = None
+        self._seeding_runtime = None
         self._seeding_step_limit = None
 
-        if seeding_timeout is None and seeding_steps is None:
+        if seeding_runtime is None and seeding_steps is None:
             # seeding_ratio is only valid if no other argument was set
             if self._step_limit is not None:
                 # Max steps mode with seeding ratio provided
                 self._seeding_step_limit = int(seeding_ratio * step_limit)
-            elif self._timeout is not None:
-                # Timeout mode with seeding ratio provided
-                self._seeding_timeout = seeding_ratio * self._timeout
+            elif self._runtime is not None:
+                # runtime mode with seeding ratio provided
+                self._seeding_runtime = seeding_ratio * self._runtime
         else:
-            if seeding_timeout is not None:
-                self._seeding_timeout = parse_timeout(seeding_timeout)
+            if seeding_runtime is not None:
+                self._seeding_runtime = parse_runtime(seeding_runtime)
             self._seeding_step_limit = seeding_steps
         self._seeding_ratio = seeding_ratio  # only needed for endless mode
 
@@ -97,7 +97,7 @@ class ScheduledRun:
 
     @property
     def unit(self):
-        if self._timeout is not None:
+        if self._runtime is not None:
             return "sec"
         else:
             return "steps"
@@ -112,11 +112,11 @@ class ScheduledRun:
 
     @property
     def is_steps_mode(self):
-        return self._timeout is None
+        return self._runtime is None
 
     @property
-    def is_timeout_mode(self):
-        return self._timeout is not None
+    def is_runtime_mode(self):
+        return self._runtime is not None
 
     @property
     def is_endless_mode(self):
@@ -130,9 +130,9 @@ class ScheduledRun:
         if self._seeding_step_limit is not None:
             # step-scheduled mode
             return self._step < self._seeding_step_limit
-        elif self._seeding_timeout is not None:
+        elif self._seeding_runtime is not None:
             # time-scheduled mode
-            return time.time() - self._start_time < self._seeding_timeout
+            return time.time() - self._start_time < self._seeding_runtime
         elif self.is_endless_mode:
             return np.random.default_rng().random() < self.endless_seeding_ratio
         else:
@@ -148,9 +148,9 @@ class ScheduledRun:
         if self._step_limit is not None:
             # step-scheduled mode
             return self._step_limit
-        elif self._timeout is not None:
+        elif self._runtime is not None:
             # time-scheduled mode
-            return self._timeout
+            return self._runtime
         return 1
 
     @property
@@ -158,9 +158,9 @@ class ScheduledRun:
         if self._step_limit is not None:
             # step-scheduled mode
             return self._step
-        elif self._timeout is not None:
+        elif self._runtime is not None:
             # time-scheduled mode
-            return np.minimum(time.time() - self._start_time, self._timeout)
+            return np.minimum(time.time() - self._start_time, self._runtime)
         return 0
 
     def is_timeout(self, estimated_runtime=0):
@@ -169,9 +169,9 @@ class ScheduledRun:
         if self._step_limit is not None:
             # step-scheduled mode
             return self._step >= self._step_limit
-        elif self._timeout is not None:
+        elif self._runtime is not None:
             # time-scheduled mode
-            return time.time() - self._start_time + estimated_runtime >= self._timeout
+            return time.time() - self._start_time + estimated_runtime >= self._runtime
         else:
             return False
 
@@ -186,8 +186,8 @@ class ScheduledRun:
     def to_total_str(self):
         if self._step_limit is not None:
             return f"{self._step_limit} steps"
-        elif self._timeout is not None:
-            return f"{time_to_pretty_str(self._timeout)}"
+        elif self._runtime is not None:
+            return f"{time_to_pretty_str(self._runtime)}"
         else:
             return "Endlessly (stop with CTRL+C)"
 
@@ -223,7 +223,7 @@ class ProgBar(Callback):
             bar_format = (
                 "Endless (stop with CTRL+C) {bar}| [{elapsed}<{remaining}{postfix}]",
             )
-        elif self._schedule.is_timeout_mode:
+        elif self._schedule.is_runtime_mode:
             bar_format = "{l_bar}{bar}| [{elapsed}<{remaining}{postfix}]"
         else:
             # step mode

@@ -20,7 +20,7 @@ import pytest
 
 import pyhopper
 from pyhopper.utils import (
-    parse_timeout,
+    parse_runtime,
     store_dict,
     load_dict,
     convert_to_checkpoint_path,

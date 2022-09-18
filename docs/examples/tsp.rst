@@ -40,7 +40,7 @@ For instance, the `2-opt <https://en.wikipedia.org/wiki/2-opt>`_ heuristic is a 
     solution = search.run(
         tsp_objective,
         "min",
-        timeout="30s",
+        runtime="30s",
     )
     # Let's plot the cities' location
     plt.scatter(cities[:, 0], cities[:, 1], marker="o", color="black")
