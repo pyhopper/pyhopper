@@ -76,7 +76,7 @@ A typical use-case with Tensorflow would look something like this
     best_params = search.run(
         pyhopper.wrap_n_times(train_mnist_mlp, n=3, yield_after=0),
         direction="max",
-        timeout="4h",
+        runtime="4h",
         n_jobs="per-gpu",
         canceler=pyhopper.pruners.QuantilePruner(0.6),
     )

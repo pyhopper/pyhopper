@@ -148,13 +148,13 @@ def _contains_number(text):
     return False
 
 
-def parse_timeout(timeout: Union[int, float, str]):
-    if isinstance(timeout, float) or isinstance(timeout, int):
-        return timeout
-    orig_timeout = timeout
-    if " " in timeout:
+def parse_runtime(runtime: Union[int, float, str]):
+    if isinstance(runtime, float) or isinstance(runtime, int):
+        return runtime
+    orig_runtime = runtime
+    if " " in runtime:
         # 5d 1h or 5d 1:0:0 pattern
-        parts = timeout.split(" ")
+        parts = runtime.split(" ")
 
         merged_parts = [parts[0]]
         for i in range(1, len(parts)):
@@ -164,63 +164,63 @@ def parse_timeout(timeout: Union[int, float, str]):
                 merged_parts.append(parts[i])
         total_time = 0
         for part in merged_parts:
-            total_time += parse_timeout(part)
+            total_time += parse_runtime(part)
         return total_time
-    elif ":" in timeout:
+    elif ":" in runtime:
         # h:m:s or m:s pattern
-        parts = timeout.split(":")
+        parts = runtime.split(":")
         total_time = 0
         for part in parts:
             total_time *= 60
             total_time += int(part)
         return total_time
-    elif "w" in timeout:
-        timeout = timeout.replace("weeks", "").replace("week", "").replace("w", "")
-        if timeout.strip() == "":
+    elif "w" in runtime:
+        runtime = runtime.replace("weeks", "").replace("week", "").replace("w", "")
+        if runtime.strip() == "":
             raise ValueError(
-                f"Could not parse substring '{orig_timeout}' while attempting to parse weeks in timeout-string. "
+                f"Could not parse substring '{orig_runtime}' while attempting to parse weeks in runtime-string. "
             )
-        return int(timeout) * 60 * 60 * 24 * 7
-    elif "d" in timeout:
-        timeout = timeout.replace("days", "").replace("day", "").replace("d", "")
-        if timeout.strip() == "":
+        return int(runtime) * 60 * 60 * 24 * 7
+    elif "d" in runtime:
+        runtime = runtime.replace("days", "").replace("day", "").replace("d", "")
+        if runtime.strip() == "":
             raise ValueError(
-                f"Could not parse substring '{orig_timeout}' while attempting to parse days in timeout-string. "
+                f"Could not parse substring '{orig_runtime}' while attempting to parse days in runtime-string. "
             )
-        return int(timeout) * 60 * 60 * 24
-    elif "h" in timeout:
-        timeout = timeout.replace("hours", "").replace("hour", "").replace("h", "")
-        if timeout.strip() == "":
+        return int(runtime) * 60 * 60 * 24
+    elif "h" in runtime:
+        runtime = runtime.replace("hours", "").replace("hour", "").replace("h", "")
+        if runtime.strip() == "":
             raise ValueError(
-                f"Could not parse substring '{orig_timeout}' while attempting to parse hours in timeout-string. "
+                f"Could not parse substring '{orig_runtime}' while attempting to parse hours in runtime-string. "
             )
-        return int(timeout) * 60 * 60
-    elif "m" in timeout:
-        timeout = (
-            timeout.replace("minutes", "")
+        return int(runtime) * 60 * 60
+    elif "m" in runtime:
+        runtime = (
+            runtime.replace("minutes", "")
             .replace("minute", "")
             .replace("mins", "")
             .replace("min", "")
             .replace("m", "")
         )
-        if timeout.strip() == "":
+        if runtime.strip() == "":
             raise ValueError(
-                f"Could not parse substring '{orig_timeout}' while attempting to parse minutes in timeout-string. "
+                f"Could not parse substring '{orig_runtime}' while attempting to parse minutes in runtime-string. "
             )
-        return int(timeout) * 60
+        return int(runtime) * 60
     else:
-        timeout = (
-            timeout.replace("seconds", "")
+        runtime = (
+            runtime.replace("seconds", "")
             .replace("second", "")
             .replace("secs", "")
             .replace("sec", "")
             .replace("s", "")
         )
-        if timeout.strip() == "":
+        if runtime.strip() == "":
             raise ValueError(
-                f"Could not parse substring '{orig_timeout}' while attempting to parse second in timeout-string. "
+                f"Could not parse substring '{orig_runtime}' while attempting to parse second in runtime-string. "
             )
-        return int(timeout)
+        return int(runtime)
 
 
 def sanitize_bounds(lb, ub):
@@ -291,8 +291,8 @@ def time_to_pretty_str(elapsed):
 if __name__ == "__main__":
 
     def print_t(inp):
-        # print(f"{str(inp)} -> {parse_timeout(inp)}")
-        print(f"assert parse_timeout('{str(inp)}') == {parse_timeout(inp)}")
+        # print(f"{str(inp)} -> {parse_runtime(inp)}")
+        print(f"assert parse_runtime('{str(inp)}') == {parse_runtime(inp)}")
 
     print_t(1723)
     print_t(934.0438)

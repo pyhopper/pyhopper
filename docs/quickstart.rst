@@ -172,13 +172,13 @@ Running PyHopper
 
 Once we have defined the search space, we can schedule the search using the :meth:`pyhopper.Search.run` method.
 The method requires three argument: The objective function, the direction of the search (minimize or maximize), and the runtime of the search.
-For specifying the runtime, we can provide a string that is parsed by :meth:`pyhopper.parse_timeout` or simply an integer/float with the runtime in seconds.
+For specifying the runtime, we can provide a string that is parsed by :meth:`pyhopper.parse_runtime` or simply an integer/float with the runtime in seconds.
 
 .. code-block:: python
 
-   timeout = 30               # 30 seconds
-   timeout = "2h 10min"       # 2 hours and 10 minutes
-   timeout = "3d 7h 30m 10s"  # 3 days, 7 hours, 30 minute and 10 seconds
+   runtime = 30               # 30 seconds
+   runtime = "2h 10min"       # 2 hours and 10 minutes
+   runtime = "3d 7h 30m 10s"  # 3 days, 7 hours, 30 minute and 10 seconds
 
 To utilize multi CPU/GPU hardware, we can run multiple evaluations of parameter candidates in parallel with the :code:`n_jobs` argument.
 For instance,

@@ -19,7 +19,7 @@ import time
 import pytest
 
 import pyhopper
-from pyhopper.utils import parse_timeout, store_dict, load_dict
+from pyhopper.utils import parse_runtime, store_dict, load_dict
 
 
 def of(param):

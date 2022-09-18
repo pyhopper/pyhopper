@@ -171,7 +171,7 @@ A typical use-case with PyTorch would look something like this
         best_params = search.run(
             train_cifar10,
             direction="max",
-            timeout="24h",
+            runtime="24h",
             n_jobs="per-gpu",
         )
         test_acc = train_cifar10(best_params, for_validation=False)
