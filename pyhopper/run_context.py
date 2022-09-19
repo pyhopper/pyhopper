@@ -335,11 +335,22 @@ class ProgBar(Callback):
                     self._run_history.runtime_per_type[CandidateType.LOCAL_SAMPLING],
                 )
             )
+        if self._run_history.total_duplicates > 0:
+            text_value_quadtuple.append(
+                (
+                    "Duplicates",
+                    None,
+                    self._run_history.total_duplicates,
+                    None,
+                    None,
+                    None,
+                )
+            )
         text_value_quadtuple.append(
             (
                 "Total",
                 self._run_history.best_f,
-                self._run_history.total_amount,
+                self._run_history.total_amount + self._run_history.total_duplicates,
                 self._run_history.total_pruned,
                 self._run_history.total_nan,
                 self._schedule.current_runtime,
@@ -347,7 +358,7 @@ class ProgBar(Callback):
         )
         text_list = []
         for text, f, steps, pruned, nan, elapsed in text_value_quadtuple:
-            value = "x" if f is None else f"{f:0.4g}"
+            value = "-" if f is None else f"{f:0.4g}"
             text_list.append(
                 [
                     text,
@@ -410,6 +421,7 @@ class RunHistory(Callback):
         self.total_amount = 0
         self.total_nan = 0
         self.total_pruned = 0
+        self.total_duplicates = 0
         self.estimated_candidate_runtime = 0
         self.best_f = None
 
@@ -450,6 +462,9 @@ class RunHistory(Callback):
             or (self._direction == "max" and new > old)
             or (self._direction == "min" and new < old)
         )
+
+    def on_duplicate_sampled(self, candidate: dict, info: ParamInfo):
+        self.total_duplicates += 1
 
     def on_evaluate_pruned(self, candidate: dict, info: ParamInfo):
         self.pruned_per_type[info.type] += 1

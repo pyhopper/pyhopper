@@ -738,6 +738,10 @@ class Search:
                 )
                 current_temperature = schedule.temperature
             else:
+                param_info = ParamInfo(candidate_type, sampled_at=time.time())
+                for c in self._run_context.callbacks:
+                    c.on_duplicate_sampled(candidate, param_info)
+
                 # Reject sample
                 current_temperature *= (
                     1.05  # increase temperature by 5% if we found a duplicate

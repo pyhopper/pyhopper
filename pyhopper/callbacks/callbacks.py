@@ -29,6 +29,13 @@ class Callback:
         """
         pass
 
+    def on_duplicate_sampled(self, candidate: dict, info: ParamInfo):
+        """Called if `candidate` was sampled twice
+
+        :param candidate: Parameter value of the sampled candidate
+        """
+        pass
+
     def on_evaluate_pruned(self, candidate: dict, info: ParamInfo):
         """Called if `candidate` was pruned (by an :meth:`pyhopper.pruners.Pruner`)
 

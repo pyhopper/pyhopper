@@ -256,6 +256,8 @@ def infer_shape(*args):
 
 
 def steps_to_pretty_str(steps):
+    if steps is None:
+        return "-"
     if steps > 1e6:
         return f"{steps//1e6:0.0f}M"
     if steps > 1e3:
@@ -264,6 +266,8 @@ def steps_to_pretty_str(steps):
 
 
 def time_to_pretty_str(elapsed):
+    if elapsed is None:
+        return "-"
     seconds = elapsed % 60
     elapsed = elapsed // 60  # now minutes
     minutes = int(elapsed % 60)
