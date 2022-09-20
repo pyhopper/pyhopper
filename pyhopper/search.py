@@ -121,7 +121,7 @@ def register_custom(
 
 
 def register_choice(
-    options: list,
+    *args,
     init: Optional[Any] = None,
     is_ordinal: bool = False,
     mutation_fn: Optional[FunctionType] = None,
@@ -129,7 +129,7 @@ def register_choice(
 ) -> ChoiceParameter:
     """Creates a new choice parameter
 
-    :param options: List containing the possible values of this parameter
+    :param *args: Possible values of this parameter. If only a single list is provided, the list will be used as options.
     :param init: Initial value of the parameter. If None it will be randomly sampled.
     :param is_ordinal: Flag indicating whether two neighboring list items ordered or not. If True, in the local sampling stage list items neighboring the current best value will be preferred. For sets with a natural ordering it is recommended to set this flag to True.
     :param mutation_fn: Setting this argument to a callable overwrites the default local sampling strategy. The callback gets called with the value
@@ -137,8 +137,11 @@ def register_choice(
     :param seeding_fn: Setting this argument to a callable overwrites the default random seeding strategy
     :return:
     """
+    options = list(args)
     if len(options) == 0:
         raise ValueError("List with possible values must not be empty.")
+    if len(options) == 1 and isinstance(options[0], list):
+        options = options[0]
     param = ChoiceParameter(options, init, is_ordinal, mutation_fn, seeding_fn)
     return param
 

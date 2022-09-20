@@ -334,5 +334,19 @@ def test_add_m2():
     search.run(of_set, direction="max", steps=15, seeding_steps=10)
 
 
+def of_options(param, x=None):
+    assert "opt" in param.keys()
+    assert param["opt"] in ["a", "b", "c"]
+    return np.random.default_rng().normal()
+
+
+def test_options():
+    search = pyhopper.Search(opt=pyhopper.choice("a", "b", "c"))
+
+    param = search.run(of_options, direction="max", steps=20)
+    assert "opt" in param.keys()
+    assert param["opt"] in ["a", "b", "c"]
+
+
 if __name__ == "__main__":
     test_freeze()
