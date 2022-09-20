@@ -129,7 +129,8 @@ def register_choice(
 ) -> ChoiceParameter:
     """Creates a new choice parameter
 
-    :param *args: Possible values of this parameter. If only a single list is provided, the list will be used as options.
+    :param *args: Possible values of this parameter.
+        If only a single list is provided, the items inside the list will be used as admissible values.
     :param init: Initial value of the parameter. If None it will be randomly sampled.
     :param is_ordinal: Flag indicating whether two neighboring list items ordered or not. If True, in the local sampling stage list items neighboring the current best value will be preferred. For sets with a natural ordering it is recommended to set this flag to True.
     :param mutation_fn: Setting this argument to a callable overwrites the default local sampling strategy. The callback gets called with the value
