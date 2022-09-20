@@ -1,5 +1,7 @@
 <div align="center"><img src="https://raw.githubusercontent.com/pyhopper/pyhopper/main/docs/img/banner_gray.png" width="800"/></div>
 
+# Note: v2.0 comming soon
+
 # PyHopper - Optimizing high-dimensional hyperparameters
 
 ![ci_badge](https://github.com/PyHopper/PyHopper/actions/workflows/continuous_integration.yml/badge.svg) [![Documentation Status](https://readthedocs.org/projects/pyhopper/badge/?version=latest)](https://pyhopper.readthedocs.io/en/latest/?badge=latest) ![pyversion](docs/img/pybadge.svg)
@@ -59,5 +61,6 @@ For more info, check out [PyHopper's documentation](https://pyhopper.readthedocs
 - Renamed ```timeout``` argument of ```search.run()``` to ```runtime``` because it's not a hard timeout 
 
 Copyright ©2018-2022. Mathias Lechner  
-Copyright ©2018-2021. Institute of Science and Technology Austria (IST Austria)  
+Copyright ©2022. Massachusetts Institute of Technology  
+Copyright ©2018-2022. Institute of Science and Technology Austria (IST Austria)  
 Copyright ©2021-2022. Simple-AI  
