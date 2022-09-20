@@ -62,5 +62,5 @@ For more info, check out [PyHopper's documentation](https://pyhopper.readthedocs
 
 Copyright ©2018-2022. Mathias Lechner  
 Copyright ©2022. Massachusetts Institute of Technology  
-Copyright ©2018-2021. Institute of Science and Technology Austria (IST Austria)  
+Copyright ©2018-2022. Institute of Science and Technology Austria (IST Austria)  
 Copyright ©2021-2022. Simple-AI  
