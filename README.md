@@ -60,6 +60,7 @@ For more info, check out [PyHopper's documentation](https://pyhopper.readthedocs
 - Renamed ```max_steps``` argument of ```search.run()``` to ```steps``` to avoid connotation of "max" with "maximize" 
 - Renamed ```timeout``` argument of ```search.run()``` to ```runtime``` because it's not a hard timeout 
 
-Copyright ©2018-2022. Mathias Lechner  
+Copyright ©2018-2022. Mathias Lechner
+Copyright ©2022. Massachusetts Institute of Technology
 Copyright ©2018-2021. Institute of Science and Technology Austria (IST Austria)  
 Copyright ©2021-2022. Simple-AI  
