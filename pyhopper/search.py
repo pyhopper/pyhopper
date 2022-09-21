@@ -600,7 +600,7 @@ class Search:
         enable_rejection_cache=True,
         callbacks: Union[callable, list, None] = None,
         start_temperature: float = 1,
-        end_temperature: float = 0,
+        end_temperature: float = 0.2,
         kwargs=None,
         checkpoint_path=None,
         overwrite_checkpoint=False,
