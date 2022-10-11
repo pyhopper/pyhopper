@@ -29,35 +29,26 @@ def my_objective(params: dict) -> float:
     return val_accuracy
 
 search = pyhopper.Search(
-    hidden_size   = pyhopper.int(100,500),
-    dropout_rate  = pyhopper.float(0,0.4),
-    learning_rate = pyhopper.float(1e-4,1e-2,"0.1g"),
-    matrix        = pyhopper.float(-1,1,shape=(20,20)),
-    opt           = pyhopper.choice(["adam","rmsprop","sgd"]),
+    hidden_size  = pyhopper.int(100,500),
+    dropout_rate = pyhopper.float(0,0.4,"0.1f"), # 1 decimal digit
+    lr           = pyhopper.float(1e-5,1e-2,"0.1g"), # loguniform, 1 significant digit
+    matrix       = pyhopper.float(-1,1,shape=(20,20)), # numpy array
+    opt          = pyhopper.choice(["adam","rmsprop","sgd"]),
 )
 best_params = search.run(my_objective, "maximize", "1h 30min", n_jobs="per-gpu")
 ```
 
 Its most important features are
 
-- 1-line multi GPU parallelization
+- 1-line multi-GPU parallelization
 - native NumPy array hyperparameter support
-- automatically focuses its search space based on the remaining runtime
+- automatic runtime scheduling of exploration vs exploitation
 
 Under its hood, PyHopper uses an efficient 2-stage Markov chain Monte Carlo (MCMC) optimization algorithm.
 
 ![alt](docs/img/sampling.webp)
 
 For more info, check out [PyHopper's documentation](https://pyhopper.readthedocs.io/)
-
-
-## Breaking changes between v1 and v2
-
-- ```pyhopper.cancelers.Canceler``` have been renamed to ```pyhopper.pruners.Pruner``` to avoid misspellings between cance**ll**er and cance**l**er.
-- Endless mode must be explicitly enabled by ```search.run(endless_mode=True, ...)```. Calling run without providing the ```timeout```, ```max_steps```, or ```endless_mode``` results in an error.
-- The ```Search.add``` method has been renamed to ```Search.enqueue``` to avoid confusion between adding parameters to the search space and adding guessed candidates to the search queue. The ```+=``` operator can still be used to enqueue candidates. For instance, ```search += {'lr': 0.01}```. 
-- Renamed ```max_steps``` argument of ```search.run()``` to ```steps``` to avoid connotation of "max" with "maximize" 
-- Renamed ```timeout``` argument of ```search.run()``` to ```runtime``` because it's not a hard timeout 
 
 Copyright ©2018-2022. Mathias Lechner  
 Copyright ©2022. Massachusetts Institute of Technology  
