@@ -8,6 +8,7 @@
 
 [**Website**](https://pyhopper.io)
 | [**Docs**](https://pyhopper.readthedocs.io/)
+| [**Whitepaper**](https://arxiv.org/abs/2210.04728)
 | [**Quickstart**](https://pyhopper.readthedocs.io/en/latest/quickstart.html)
 | [![Colab Tutorial](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1UPzhfCNCagh4OjI0VQyq87TpFbGoFBBl?usp=sharing)
 
