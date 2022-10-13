@@ -21,7 +21,7 @@ sys.path.insert(0, os.path.abspath(".."))
 # -- Project information -----------------------------------------------------
 
 project = "PyHopper"
-copyright = "2021, Mathias Lechner and the PyHopper team"
+copyright = "2022, Mathias Lechner and the PyHopper team"
 author = "Mathias Lechner and the PyHopper team"
 
 # The short X.Y version
@@ -80,8 +80,7 @@ exclude_patterns = [".build", "Thumbs.db", ".DS_Store"]
 # The name of the Pygments (syntax highlighting) style to use.
 pygments_style = "friendly"
 autodoc_typehints = "description"
-
-
+autoclass_content = "init"
 # -- Options for HTML output -------------------------------------------------
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
