@@ -60,10 +60,18 @@ def register_int(
     seeding_fn: Optional[callable] = None,
     mutation_fn: Optional[callable] = None,
 ) -> IntParameter:
-    """Creates a new integer parameter
+    """Creates a new integer parameter (both lower and upper bounds are **inclusive**)
 
-    :param lb: Lower bound of the parameter.
-    :param ub: Upper bound of the parameter. If None, the `lb` argument will be used as upper bound with a lower bound of 0.
+    Examples::
+
+        >>> pyhopper.int(10) # uniform distribution [0,10] (including 0 and 10 as valid values)
+        >>> pyhopper.int(-10, 10) # uniform distribution [-10,10]
+        >>> pyhopper.int(100,500, multiple_of=100) # quantized to 100 increments (100,200,300,400,500)
+        >>> pyhopper.int(8,64, power_of=2) # quantized to powers of 2 (8,16,32,64)
+        >>> pyhopper.int(0,100, shape=5) # multidimensional parameter (5 dimensions)
+
+    :param lb: Inclusive lower bound of the parameter (used as upper bound if no upper bound is provided)
+    :param ub: Inclusive upper bound of the parameter. If None, the `lb` argument will be used as upper bound with a lower bound of 0.
     :param init: Initial value of the parameter. If None it will be randomly sampled
     :param multiple_of: Setting this value to a positive integer enforces the sampled values of this parameter to be a mulitple of `multiple_of`.
     :param shape: For NumPy array type parameters, this argument must be set to a tuple containing the shape of the np.ndarray
@@ -129,6 +137,13 @@ def register_choice(
 ) -> ChoiceParameter:
     """Creates a new choice parameter
 
+    Examples::
+
+        >>> pyhopper.choice("adam","rmsprop","sgd") # unnamed arguments as valid options
+        >>> pyhopper.choice(["adam","rmsprop","sgd"]) # equivalent syntax
+        >>> pyhopper.choice("low","medium","high",is_ordinal=True) # ordinal (ordered) options
+
+    :param init: Initial guess of the parameter
     :param *args: Possible values of this parameter.
         If only a single list is provided, the items inside the list will be used as admissible values.
     :param init: Initial value of the parameter. If None it will be randomly sampled.
@@ -154,6 +169,11 @@ def register_bool(
 ) -> ChoiceParameter:
     """Creates a new choice parameter
 
+        Examples::
+
+        >>> pyhopper.bool()
+        >>> pyhopper.bool(True) # initial guess is assumed to be "True"
+
     :param init: Initial value of the parameter. If None it will be randomly sampled.
     :param mutation_fn: Setting this argument to a callable overwrites the default local sampling strategy. The callback gets called with the value
         of the the current best solution as argument and returns a mutated value
@@ -176,6 +196,16 @@ def register_float(
     seeding_fn: Optional[FunctionType] = None,
 ) -> FloatParameter:
     """Creates a new floating point parameter
+
+    Examples::
+
+        >>> pyhopper.float(1) # uniform distribution in range [0,1]
+        >>> pyhopper.float(-1,1) # uniform distribution in range [-1,1]
+        >>> pyhopper.float(1e-5,1e-2, log=True) # loguniform distrubution
+        >>> pyhopper.float(0,0.5, "0.1f") # uniform distribution, quantized to 0.1 increments (1 decimal digit)
+        >>> pyhopper.float(1e-5,1e-2, "0.1g") # loguniform distribution, logquantized to to 1 signficiant digit
+        >>> pyhopper.float(-1,1, shape=(3,3)) # multidimensional parameter
+
 
     :param lb: Lower bound of the parameter. If both `lb` and `ub` are None, this parameter will be unbounded (usually not recommended).
     :param ub: Upper bound of the parameter. If None, the `lb` argument will be used as upper bound with a lower bound of 0.
@@ -240,7 +270,27 @@ def register_float(
 class Search:
     def __init__(self, *args: Union[dict, Sequence[dict]], **kwargs):
         """
-        Creates a new search object
+        Creates a new search object.
+
+        The recommended way to to simply pass named arguments
+
+        Examples::
+
+            >>> search = pyhopper.Search(
+            >>>     x = pyhopper.float(0,1),
+            >>>     y = pyhopper.int(0,10),
+            >>>     z = 2,
+            >>> )
+
+        which is equivalent to having a single ``dict``
+
+        Examples::
+
+            >>> search = pyhopper.Search({
+            >>>     "x": pyhopper.float(0,1),
+            >>>     "y": pyhopper.int(0,10),
+            >>>     "z": 2,
+            >>> })
 
         :param args: dict defining the search space. If multiple dicts are provided the dicts will be merged.
         :param kwargs: key-value pairs defining the search space. Will be merged with the numbered arguments if some are provided
@@ -608,6 +658,16 @@ class Search:
     ):
         """Starts the hyperparameter tuning process.
 
+        Examples::
+
+            >>> def obj_func(param):
+            >>>     return -(param["x"]-3)**2
+            >>>
+            >>> search = pyhopper.Search(
+            >>>     x = pyhopper.float(-5,5),
+            >>> )
+            >>> search.run(obj_func,"max","10s")
+
         :param objective_function: The objective function that should be optimized.
             Can be a generator function that yields estimates of the true objective function to prune unpromising candidates early on.
         :param direction: String defining if the objective function should be minimized or maximize
@@ -859,5 +919,26 @@ class Search:
 
     @property
     def history(self) -> History:
-        """Contains a list of all evaluated candidates and corresponding objective values so far."""
+        """Contains a list of all evaluated candidates and corresponding objective values so far.
+
+        Examples::
+
+            >>> search = pyhopper.Search(...)
+            >>> search.run(...)
+            >>>
+            >>> import matplotlib.pyplot as plt
+            >>> fig, ax = plt.subplots(figsize=(8, 5))
+            >>> ax.scatter(
+            >>>     x=search.history.steps,
+            >>>     y=search.history.fs,
+            >>>     label="Sampled",
+            >>> )
+            >>> ax.plot(
+            >>>     search.history.steps,
+            >>>     search.history.best_fs,
+            >>>     label="Best so far",
+            >>> )
+            >>> fig.show()
+
+        """
         return self._history
