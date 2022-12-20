@@ -3,8 +3,10 @@ from datetime import datetime
 import os
 import pickle
 
+from pyhopper.callbacks import Callback
 
-class MLflowCallback:
+
+class MLflowCallback(Callback):
     def __init__(self, experiment_name=None, run_name=None):
         if experiment_name is None:
             experiment_name = "Pyhopper"

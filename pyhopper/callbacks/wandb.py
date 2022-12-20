@@ -5,8 +5,10 @@ from datetime import datetime
 import os
 import pickle
 
+from pyhopper.callbacks import Callback
 
-class WandbCallback:
+
+class WandbCallback(Callback):
     def __init__(
         self,
         project: Optional[str] = None,

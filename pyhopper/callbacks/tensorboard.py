@@ -5,8 +5,10 @@ from datetime import datetime
 import os
 import pickle
 
+from pyhopper.callbacks import Callback
 
-class TensorboardCallback:
+
+class TensorboardCallback(Callback):
     def __init__(
         self, logdir: Optional[str] = None, comment: str = "", flush_secs: int = 5
     ):
