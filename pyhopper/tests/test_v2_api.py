@@ -166,7 +166,6 @@ def test_checkpoint_path():
     print("x2", x2)
     assert x == x2
 
-
 if __name__ == "__main__":
     # test_checkpoint()
     # test_checkpoint_pruner()

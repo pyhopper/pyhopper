@@ -40,6 +40,25 @@ class Parameter:
     def mutate(self, value: typing.Any, temperature: float) -> typing.Any:
         raise NotImplementedError()
 
+class ConditionalParameter(Parameter):
+    def __init__(self, kwargs):
+        super().__init__()
+        if len(kwargs) == 0:
+            raise ValueError("Must pass at least one case for a conditional parameter!")
+        self.cases = list(kwargs.keys())
+        self.values = kwargs
+        self.initial_value = self.cases[0], self.values[self.cases[0]]
+
+    def sample(self):
+        k = np.random.default_rng().choice(self.cases)
+        v = self.values[k]
+        return k,v
+
+    def mutate(self, value, temperature: float):
+        switch_case = np.random.default_rng().choice([True,False],p=[temperature,1.0-temperature])
+        if switch_case:
+            return self.sample()
+        return value
 
 class CustomParameter(Parameter):
     def __init__(self, init, mutation_strategy, sampling_strategy):

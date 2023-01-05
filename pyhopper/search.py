@@ -14,6 +14,7 @@
 
 import os.path
 
+import pyhopper
 from .cache import EvaluationCache
 from .callbacks import History
 from .callbacks.callbacks import CheckpointCallback
@@ -22,6 +23,7 @@ from .parameters import (
     IntParameter,
     ChoiceParameter,
     CustomParameter,
+    ConditionalParameter,
     Parameter,
     PowerOfIntParameter,
     LogSpaceFloatParameter,
@@ -48,6 +50,76 @@ from .utils import (
     load_dict,
     store_dict,
 )
+
+
+def register_conditional(
+    *args,
+    **kwargs
+) -> ConditionalParameter:
+    """Creates a new conditional parameter similar to ```pyhopper.choice``` but allows nested configuration spaces.
+    Different from ```pyhopper.choice``` each case is a key-value pair instead of just a value,
+    with the key being the name of the case
+
+    .. Warning::
+        Conditional parameters are an experimental feature of PyHopper and may be unstable and subject to changes in the future
+
+    :param *args: A single ```dict``` object or empty if keyword arguments are used
+    :param **kwargs: Keyword arguments that correspond to the different cases
+
+    Examples::
+
+        >>> search = pyhopper.Search(
+        >>>   cond_param = pyhopper.cases(
+        >>>     case1="abc",
+        >>>     other_case=pyhopper.int(0,10),
+        >>>     third_case=["xyz",pyhopper.int(-10,0)])
+        >>> )
+        >>> # Generates samples
+        >>> # {'cond_param': ('case1', 'abc')}
+        >>> # {'cond_param': ('other_case', 0)}
+        >>> # {'cond_param': ('other_case', 3)}
+        >>> # {'cond_param': ('case1', 'abc')}
+        >>> # {'cond_param': ('third_case', ['xyz', -2])}
+        >>> # {'cond_param': ('third_case', ['xyz', -9])}
+
+    The conditional parameter above may be then used in an objective function as a pair:
+
+    Examples::
+
+    >>> def of(params):
+    >>>   # params["cond_param"] is a pair
+    >>>   if params["cond_param"][0] == "case1":
+    >>>      # params["cond_param"][1] == "abc"
+    >>>      # do x
+    >>>   elif params["cond_param"][0] == "other_case":
+    >>>     # params["cond_param"][1] is a random integer between 0 and 1
+    >>>     # do y
+    >>>   else:
+    >>>     # params["cond_param"][0] is "third_case":
+    >>>     # params["cond_param"][1] is a list
+    >>>     # do z
+
+    Conditional search spaces might be useful for hyperparameter choices that depend on other choice outcomes, for instance:
+
+    Examples::
+
+        >>> search = pyhopper.Search(
+        >>>   optimizer = pyhopper.cases(
+        >>>     sgd = {"lr": pyhopper.float(1e-5,1e-2)},
+        >>>     nesterov = {"lr": pyhopper.float(1e-5,1e-2), "momentum": pyhopper.float(0.01,0.99)},
+        >>>     adam = {"lr": pyhopper.float(1e-5,1e-2), "beta": pyhopper.float(0.1,0.2)},
+        >>> )
+
+    """
+
+    if len(args)>0 and len(kwargs)>0:
+        raise ValueError("Cannot specify unnamed and named arguments at the same time.")
+    if len(args)>1:
+        raise ValueError("Argument must be a single dictionary object containing the cases")
+    if len(args)==1:
+        kwargs = args[0]
+    param = ConditionalParameter(kwargs)
+    return param
 
 
 def register_int(
@@ -127,6 +199,15 @@ def register_custom(
     param = CustomParameter(init, mutation_fn, seeding_fn)
     return param
 
+def recursive_check_for_ph_types_and_fail(options):
+    if isinstance(options,pyhopper.Parameter):
+        raise ValueError("Cannot use pyhopper.Parameter type inside pyhopper.choice. Consider using pyhopper.cases instead!")
+    elif isinstance(options,list):
+        for v in options:
+            recursive_check_for_ph_types_and_fail(v)
+    elif isinstance(options,dict):
+        for k,v in options:
+            recursive_check_for_ph_types_and_fail(v)
 
 def register_choice(
     *args,
@@ -158,6 +239,7 @@ def register_choice(
         raise ValueError("List with possible values must not be empty.")
     if len(options) == 1 and isinstance(options[0], list):
         options = options[0]
+    recursive_check_for_ph_types_and_fail(options)
     param = ChoiceParameter(options, init, is_ordinal, mutation_fn, seeding_fn)
     return param
 
@@ -327,7 +409,10 @@ class Search:
             self._best_solution[key] = self._get_initial_solution(value)
 
     def _get_initial_solution(self, param):
-        if isinstance(param, Parameter):
+        if isinstance(param, ConditionalParameter):
+            k,v = param.initial_value
+            return k,self._get_initial_solution(v)
+        elif isinstance(param, Parameter):
             return param.initial_value
         elif isinstance(param, dict):
             return {k: self._get_initial_solution(v) for k, v in param.items()}
@@ -454,7 +539,10 @@ class Search:
     #     else:
 
     def _sample_solution_rec(self, node):
-        if isinstance(node, Parameter):
+        if isinstance(node, ConditionalParameter):
+            k,v = node.sample()
+            return (k,self._sample_solution_rec(v))
+        elif isinstance(node, Parameter):
             return node.sample()
         elif isinstance(node, dict):
             return {k: self._sample_solution_rec(v) for k, v in node.items()}
@@ -469,8 +557,20 @@ class Search:
     def _mutate_from_best_rec(
         self, temperature, node=None, best_node=None, bitmask=None
     ):
-        if isinstance(node, Parameter):
-            p = bitmask.pop()
+        if isinstance(node, ConditionalParameter):
+            p = True if bitmask is None else bitmask.pop()
+            # consume one bit -> tells us if we should mutate or not
+            if not p:
+                return best_node
+            k,v = best_node
+            new_k,new_v = node.mutate(best_node, temperature=temperature)
+            if new_k != k:
+                return new_k, self._sample_solution_rec(new_v)
+            else:
+                # assert v == new_v does not hold because sample() can potentially fall on same key
+                return (k,self._mutate_from_best_rec(temperature,node=new_v,best_node=best_node[1]))
+        elif isinstance(node, Parameter):
+            p = True if bitmask is None else bitmask.pop()
             # consume one bit -> tells us if we should mutate or not
             return node.mutate(best_node, temperature=temperature) if p else best_node
         elif isinstance(node, dict):

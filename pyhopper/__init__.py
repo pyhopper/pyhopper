@@ -24,6 +24,7 @@ from pyhopper.search import register_int as int
 from pyhopper.search import register_custom as custom
 from pyhopper.search import register_choice as choice
 from pyhopper.search import register_bool as bool
+from pyhopper.search import register_conditional as cases
 from pyhopper.utils import NTimesEvaluator as wrap_n_times
 from pyhopper.utils import parse_runtime as parse_runtime
 from pyhopper.utils import ParamInfo
