@@ -52,10 +52,7 @@ from .utils import (
 )
 
 
-def register_conditional(
-    *args,
-    **kwargs
-) -> ConditionalParameter:
+def register_conditional(*args, **kwargs) -> ConditionalParameter:
     """Creates a new conditional parameter similar to ```pyhopper.choice``` but allows nested configuration spaces.
     Different from ```pyhopper.choice``` each case is a key-value pair instead of just a value,
     with the key being the name of the case
@@ -112,11 +109,13 @@ def register_conditional(
 
     """
 
-    if len(args)>0 and len(kwargs)>0:
+    if len(args) > 0 and len(kwargs) > 0:
         raise ValueError("Cannot specify unnamed and named arguments at the same time.")
-    if len(args)>1:
-        raise ValueError("Argument must be a single dictionary object containing the cases")
-    if len(args)==1:
+    if len(args) > 1:
+        raise ValueError(
+            "Argument must be a single dictionary object containing the cases"
+        )
+    if len(args) == 1:
         kwargs = args[0]
     param = ConditionalParameter(kwargs)
     return param
@@ -199,15 +198,19 @@ def register_custom(
     param = CustomParameter(init, mutation_fn, seeding_fn)
     return param
 
+
 def recursive_check_for_ph_types_and_fail(options):
-    if isinstance(options,pyhopper.Parameter):
-        raise ValueError("Cannot use pyhopper.Parameter type inside pyhopper.choice. Consider using pyhopper.cases instead!")
-    elif isinstance(options,list):
+    if isinstance(options, pyhopper.Parameter):
+        raise ValueError(
+            "Cannot use pyhopper.Parameter type inside pyhopper.choice. Consider using pyhopper.cases instead!"
+        )
+    elif isinstance(options, list):
         for v in options:
             recursive_check_for_ph_types_and_fail(v)
-    elif isinstance(options,dict):
-        for k,v in options:
+    elif isinstance(options, dict):
+        for k, v in options:
             recursive_check_for_ph_types_and_fail(v)
+
 
 def register_choice(
     *args,
@@ -223,6 +226,9 @@ def register_choice(
         >>> pyhopper.choice("adam","rmsprop","sgd") # unnamed arguments as valid options
         >>> pyhopper.choice(["adam","rmsprop","sgd"]) # equivalent syntax
         >>> pyhopper.choice("low","medium","high",is_ordinal=True) # ordinal (ordered) options
+
+    Note::
+        All items in the list of possible options must be values. For nested conditional configuration spaces see ```pyhopper.cases```
 
     :param init: Initial guess of the parameter
     :param *args: Possible values of this parameter.
@@ -410,8 +416,8 @@ class Search:
 
     def _get_initial_solution(self, param):
         if isinstance(param, ConditionalParameter):
-            k,v = param.initial_value
-            return k,self._get_initial_solution(v)
+            k, v = param.initial_value
+            return k, self._get_initial_solution(v)
         elif isinstance(param, Parameter):
             return param.initial_value
         elif isinstance(param, dict):
@@ -540,8 +546,8 @@ class Search:
 
     def _sample_solution_rec(self, node):
         if isinstance(node, ConditionalParameter):
-            k,v = node.sample()
-            return (k,self._sample_solution_rec(v))
+            k, v = node.sample()
+            return (k, self._sample_solution_rec(v))
         elif isinstance(node, Parameter):
             return node.sample()
         elif isinstance(node, dict):
@@ -562,13 +568,18 @@ class Search:
             # consume one bit -> tells us if we should mutate or not
             if not p:
                 return best_node
-            k,v = best_node
-            new_k,new_v = node.mutate(best_node, temperature=temperature)
+            k, v = best_node
+            new_k, new_v = node.mutate(best_node, temperature=temperature)
             if new_k != k:
                 return new_k, self._sample_solution_rec(new_v)
             else:
                 # assert v == new_v does not hold because sample() can potentially fall on same key
-                return (k,self._mutate_from_best_rec(temperature,node=new_v,best_node=best_node[1]))
+                return (
+                    k,
+                    self._mutate_from_best_rec(
+                        temperature, node=new_v, best_node=best_node[1]
+                    ),
+                )
         elif isinstance(node, Parameter):
             p = True if bitmask is None else bitmask.pop()
             # consume one bit -> tells us if we should mutate or not

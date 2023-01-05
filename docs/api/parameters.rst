@@ -19,6 +19,8 @@ Parameters
 
 .. autofunction:: choice
 
+.. autofunction:: cases
+
 .. autofunction:: custom
 
 .. autoclass:: Parameter
