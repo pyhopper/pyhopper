@@ -232,13 +232,14 @@ def register_choice(
     The possible options can contain nested parameter spaces, for instance
 
     Examples::
-        >>> pyhopper.choice("const", pyhopper.int(0, 10), ["nested", pyhopper.int(-10, 0)])
+
+        >>> pyhopper.choice("const", pyhopper.int(0, 10), ["nested2", pyhopper.int(-10, 0)])
         >>> # Generates the samples
         >>> # 'const'
         >>> # 8
         >>> # 2
-        >>> # ['nested', 0]
-        >>> # ['nested', -8]
+        >>> # ['nested2', 0]
+        >>> # ['nested2', -8]
         >>> # 4
 
     :param init_index: Initial guess of the parameter represented by its index
