@@ -26,6 +26,7 @@ from .pruners.pruners import (
     should_prune,
     get_intermediate_results_list,
 )
+from .utils import unwrap_sample
 
 _signals_received = 0
 
@@ -216,6 +217,9 @@ def execute(objective_function, candidate, pruner, kwargs, remote=False, gpu=Non
         os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu)
     if remote:
         signal.signal(signal.SIGINT, dummy_signal_handler)
+
+    # Remove index auxiliary variables before calling the objective function
+    candidate = candidate.unwrapped_value
 
     set_global_pruner(pruner)
     eval_result = EvaluationResult()

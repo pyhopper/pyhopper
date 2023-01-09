@@ -43,6 +43,29 @@ class ParamInfo:
         self.sampled_at = sampled_at
 
 
+class WrappedSample:
+    def __init__(self, value, aux):
+        self.value = value
+        self.aux = aux
+
+
+def unwrap_sample(sample):
+    if isinstance(sample, WrappedSample):
+        return unwrap_sample(sample.value)
+    elif isinstance(sample, dict):
+        return {k: unwrap_sample(v) for k, v in sample.items()}
+    elif isinstance(sample, list):
+        return [unwrap_sample(v) for v in sample]
+    else:
+        return sample
+
+
+class Candidate:
+    def __init__(self, value):
+        self.value = value
+        self.unwrapped_value = unwrap_sample(value)
+
+
 def merge_dicts(*args):
     """Merges multiple dictionaries (``dict``s) into a single dictionary.
     Raises ValueError if a key is contained in two dicts with different values.

@@ -23,7 +23,6 @@ from .parameters import (
     IntParameter,
     ChoiceParameter,
     CustomParameter,
-    ConditionalParameter,
     Parameter,
     PowerOfIntParameter,
     LogSpaceFloatParameter,
@@ -49,76 +48,79 @@ from .utils import (
     convert_to_checkpoint_path,
     load_dict,
     store_dict,
+    unwrap_sample,
+    WrappedSample,
+    Candidate,
 )
 
 
-def register_conditional(*args, **kwargs) -> ConditionalParameter:
-    """Creates a new conditional parameter similar to ```pyhopper.choice``` but allows nested configuration spaces.
-    Different from ```pyhopper.choice``` each case is a key-value pair instead of just a value,
-    with the key being the name of the case
-
-    .. Warning::
-        Conditional parameters are an experimental feature of PyHopper and may be unstable and subject to changes in the future
-
-    :param *args: A single ```dict``` object or empty if keyword arguments are used
-    :param **kwargs: Keyword arguments that correspond to the different cases
-
-    Examples::
-
-        >>> search = pyhopper.Search(
-        >>>   cond_param = pyhopper.cases(
-        >>>     case1="abc",
-        >>>     other_case=pyhopper.int(0,10),
-        >>>     third_case=["xyz",pyhopper.int(-10,0)])
-        >>> )
-        >>> # Generates samples
-        >>> # {'cond_param': ('case1', 'abc')}
-        >>> # {'cond_param': ('other_case', 0)}
-        >>> # {'cond_param': ('other_case', 3)}
-        >>> # {'cond_param': ('case1', 'abc')}
-        >>> # {'cond_param': ('third_case', ['xyz', -2])}
-        >>> # {'cond_param': ('third_case', ['xyz', -9])}
-
-    The conditional parameter above may be then used in an objective function as a pair:
-
-    Examples::
-
-    >>> def of(params):
-    >>>   # params["cond_param"] is a pair
-    >>>   if params["cond_param"][0] == "case1":
-    >>>      # params["cond_param"][1] == "abc"
-    >>>      # do x
-    >>>   elif params["cond_param"][0] == "other_case":
-    >>>     # params["cond_param"][1] is a random integer between 0 and 1
-    >>>     # do y
-    >>>   else:
-    >>>     # params["cond_param"][0] is "third_case":
-    >>>     # params["cond_param"][1] is a list
-    >>>     # do z
-
-    Conditional search spaces might be useful for hyperparameter choices that depend on other choice outcomes, for instance:
-
-    Examples::
-
-        >>> search = pyhopper.Search(
-        >>>   optimizer = pyhopper.cases(
-        >>>     sgd = {"lr": pyhopper.float(1e-5,1e-2)},
-        >>>     nesterov = {"lr": pyhopper.float(1e-5,1e-2), "momentum": pyhopper.float(0.01,0.99)},
-        >>>     adam = {"lr": pyhopper.float(1e-5,1e-2), "beta": pyhopper.float(0.1,0.2)},
-        >>> )
-
-    """
-
-    if len(args) > 0 and len(kwargs) > 0:
-        raise ValueError("Cannot specify unnamed and named arguments at the same time.")
-    if len(args) > 1:
-        raise ValueError(
-            "Argument must be a single dictionary object containing the cases"
-        )
-    if len(args) == 1:
-        kwargs = args[0]
-    param = ConditionalParameter(kwargs)
-    return param
+# def register_conditional(*args, **kwargs) -> ConditionalParameter:
+#     """Creates a new conditional parameter similar to ```pyhopper.choice``` but allows nested configuration spaces.
+#     Different from ```pyhopper.choice``` each case is a key-value pair instead of just a value,
+#     with the key being the name of the case
+#
+#     .. Warning::
+#         Conditional parameters are an experimental feature of PyHopper and may be unstable and subject to changes in the future
+#
+#     :param *args: A single ```dict``` object or empty if keyword arguments are used
+#     :param **kwargs: Keyword arguments that correspond to the different cases
+#
+#     Examples::
+#
+#         >>> search = pyhopper.Search(
+#         >>>   cond_param = pyhopper.cases(
+#         >>>     case1="abc",
+#         >>>     other_case=pyhopper.int(0,10),
+#         >>>     third_case=["xyz",pyhopper.int(-10,0)])
+#         >>> )
+#         >>> # Generates samples
+#         >>> # {'cond_param': ('case1', 'abc')}
+#         >>> # {'cond_param': ('other_case', 0)}
+#         >>> # {'cond_param': ('other_case', 3)}
+#         >>> # {'cond_param': ('case1', 'abc')}
+#         >>> # {'cond_param': ('third_case', ['xyz', -2])}
+#         >>> # {'cond_param': ('third_case', ['xyz', -9])}
+#
+#     The conditional parameter above may be then used in an objective function as a pair:
+#
+#     Examples::
+#
+#     >>> def of(params):
+#     >>>   # params["cond_param"] is a pair
+#     >>>   if params["cond_param"][0] == "case1":
+#     >>>      # params["cond_param"][1] == "abc"
+#     >>>      # do x
+#     >>>   elif params["cond_param"][0] == "other_case":
+#     >>>     # params["cond_param"][1] is a random integer between 0 and 1
+#     >>>     # do y
+#     >>>   else:
+#     >>>     # params["cond_param"][0] is "third_case":
+#     >>>     # params["cond_param"][1] is a list
+#     >>>     # do z
+#
+#     Conditional search spaces might be useful for hyperparameter choices that depend on other choice outcomes, for instance:
+#
+#     Examples::
+#
+#         >>> search = pyhopper.Search(
+#         >>>   optimizer = pyhopper.cases(
+#         >>>     sgd = {"lr": pyhopper.float(1e-5,1e-2)},
+#         >>>     nesterov = {"lr": pyhopper.float(1e-5,1e-2), "momentum": pyhopper.float(0.01,0.99)},
+#         >>>     adam = {"lr": pyhopper.float(1e-5,1e-2), "beta": pyhopper.float(0.1,0.2)},
+#         >>> )
+#
+#     """
+#
+#     if len(args) > 0 and len(kwargs) > 0:
+#         raise ValueError("Cannot specify unnamed and named arguments at the same time.")
+#     if len(args) > 1:
+#         raise ValueError(
+#             "Argument must be a single dictionary object containing the cases"
+#         )
+#     if len(args) == 1:
+#         kwargs = args[0]
+#     param = ConditionalParameter(kwargs)
+#     return param
 
 
 def register_int(
@@ -214,7 +216,7 @@ def recursive_check_for_ph_types_and_fail(options):
 
 def register_choice(
     *args,
-    init: Optional[Any] = None,
+    init_index: Optional[Any] = None,
     is_ordinal: bool = False,
     mutation_fn: Optional[FunctionType] = None,
     seeding_fn: Optional[FunctionType] = None,
@@ -227,10 +229,19 @@ def register_choice(
         >>> pyhopper.choice(["adam","rmsprop","sgd"]) # equivalent syntax
         >>> pyhopper.choice("low","medium","high",is_ordinal=True) # ordinal (ordered) options
 
-    Note::
-        All items in the list of possible options must be values. For nested conditional configuration spaces see ```pyhopper.cases```
+    The possible options can contain nested parameter spaces, for instance
 
-    :param init: Initial guess of the parameter
+    Examples::
+        >>> pyhopper.choice("const", pyhopper.int(0, 10), ["nested", pyhopper.int(-10, 0)])
+        >>> # Generates the samples
+        >>> # 'const'
+        >>> # 8
+        >>> # 2
+        >>> # ['nested', 0]
+        >>> # ['nested', -8]
+        >>> # 4
+
+    :param init_index: Initial guess of the parameter represented by its index
     :param *args: Possible values of this parameter.
         If only a single list is provided, the items inside the list will be used as admissible values.
     :param init: Initial value of the parameter. If None it will be randomly sampled.
@@ -245,8 +256,8 @@ def register_choice(
         raise ValueError("List with possible values must not be empty.")
     if len(options) == 1 and isinstance(options[0], list):
         options = options[0]
-    recursive_check_for_ph_types_and_fail(options)
-    param = ChoiceParameter(options, init, is_ordinal, mutation_fn, seeding_fn)
+    # recursive_check_for_ph_types_and_fail(options)
+    param = ChoiceParameter(options, init_index, is_ordinal, mutation_fn, seeding_fn)
     return param
 
 
@@ -390,7 +401,7 @@ class Search:
         parameters = merge_dicts(parameters, kwargs)
 
         self._params = parameters
-        self._best_solution = self._get_initial_solution(self._params)
+        self._best_solution = Candidate(self._get_initial_solution(self._params))
 
         self._free_param_count = self._count_free_parameters()
         self._best_f = None
@@ -412,14 +423,17 @@ class Search:
         self._free_param_count = self._count_free_parameters()
         if self._best_f is None:
             # Special case if setitem is called before run
-            self._best_solution[key] = self._get_initial_solution(value)
+            new_value = self._get_initial_solution(value)
+            new_unwrapped = unwrap_sample(new_value)
+            self._best_solution.value[key] = new_value
+            self._best_solution.unwrapped_value[key] = new_unwrapped
 
     def _get_initial_solution(self, param):
-        if isinstance(param, ConditionalParameter):
-            k, v = param.initial_value
-            return k, self._get_initial_solution(v)
-        elif isinstance(param, Parameter):
-            return param.initial_value
+        if isinstance(param, Parameter):
+            init = param.initial_value
+            if isinstance(init, WrappedSample):
+                init.value = self._get_initial_solution(init.value)
+            return init
         elif isinstance(param, dict):
             return {k: self._get_initial_solution(v) for k, v in param.items()}
         elif isinstance(param, list):
@@ -506,8 +520,7 @@ class Search:
 
         :param candidate: dict representing a subset of the parameters assigned to a value
         """
-        added_candidate = self._enqueue_rec(self._best_solution, candidate)
-
+        added_candidate = self._enqueue_rec(self._best_solution.value, candidate)
         self._manually_queued_candidates.append(added_candidate)
 
     # def sweep(self, name: str, candidate_values: list) -> None:
@@ -545,11 +558,11 @@ class Search:
     #     else:
 
     def _sample_solution_rec(self, node):
-        if isinstance(node, ConditionalParameter):
-            k, v = node.sample()
-            return (k, self._sample_solution_rec(v))
-        elif isinstance(node, Parameter):
-            return node.sample()
+        if isinstance(node, Parameter):
+            sample = node.sample()
+            if isinstance(sample, WrappedSample):
+                sample.value = self._sample_solution_rec(sample.value)
+            return sample
         elif isinstance(node, dict):
             return {k: self._sample_solution_rec(v) for k, v in node.items()}
         elif isinstance(node, list):
@@ -563,27 +576,22 @@ class Search:
     def _mutate_from_best_rec(
         self, temperature, node=None, best_node=None, bitmask=None
     ):
-        if isinstance(node, ConditionalParameter):
+        if isinstance(node, Parameter):
             p = True if bitmask is None else bitmask.pop()
             # consume one bit -> tells us if we should mutate or not
-            if not p:
-                return best_node
-            k, v = best_node
-            new_k, new_v = node.mutate(best_node, temperature=temperature)
-            if new_k != k:
-                return new_k, self._sample_solution_rec(new_v)
-            else:
-                # assert v == new_v does not hold because sample() can potentially fall on same key
-                return (
-                    k,
-                    self._mutate_from_best_rec(
-                        temperature, node=new_v, best_node=best_node[1]
-                    ),
-                )
-        elif isinstance(node, Parameter):
-            p = True if bitmask is None else bitmask.pop()
-            # consume one bit -> tells us if we should mutate or not
-            return node.mutate(best_node, temperature=temperature) if p else best_node
+            sample = node.mutate(best_node, temperature=temperature) if p else best_node
+            if isinstance(sample, WrappedSample):
+                if best_node.aux != sample.aux:
+                    # switched to a new case
+                    sample.value = self._sample_solution_rec(sample.value)
+                else:
+                    sample.value = self._mutate_from_best_rec(
+                        temperature,
+                        node=sample.value,
+                        best_node=best_node.value,
+                        bitmask=None,  # no further masking after level 1
+                    )
+            return sample
         elif isinstance(node, dict):
             return {
                 k: self._mutate_from_best_rec(
@@ -605,7 +613,7 @@ class Search:
 
         temperature = float(np.clip(temperature, 0, 1))
         node = self._params
-        best_node = self._best_solution
+        best_node = self._best_solution.value
         # With decreasing temperature we resample/mutate fewer parameters
         amount_to_mutate = int(
             max(round(temperature * self.free_param_count), 1)
@@ -616,11 +624,14 @@ class Search:
         return self._mutate_from_best_rec(temperature, node, best_node, bitmask)
 
     def _submit_candidate(self, objective_function, candidate_type, candidate, kwargs):
+        if candidate.unwrapped_value in self._f_cache:
+            return False
+
         param_info = ParamInfo(candidate_type, sampled_at=time.time())
         for c in self._run_context.callbacks:
-            c.on_evaluate_start(candidate, param_info)
+            c.on_evaluate_start(candidate.unwrapped_value, param_info)
 
-        self._f_cache.stage(candidate)
+        self._f_cache.stage(candidate.unwrapped_value)
         if self._run_context.task_executor is None:
             candidate_result = execute(
                 objective_function,
@@ -638,6 +649,7 @@ class Search:
                 self._run_context.pruner,
                 kwargs,
             )
+        return True
 
     def _wait_for_one_free_executor(self):
         if self._run_context.task_executor is not None:
@@ -679,7 +691,7 @@ class Search:
             raise ValueError(
                 "NaN returned in objective function. If NaNs should be ignored (treated as pruned evaluations) pass 'ignore_nans=True' argument to 'run'"
             )
-        self._f_cache.commit(candidate, candidate_result.value)
+        self._f_cache.commit(candidate.unwrapped_value, candidate_result.value)
         if self._run_context.pruner is not None and not candidate_result.is_nan:
             # If the result is NaN we should not tell the Pruner object
             # TODO: Maybe we should catch if the user does not call "should_prune" or the of is not a generator
@@ -694,16 +706,18 @@ class Search:
         if candidate_result.was_pruned:
             param_info.is_pruned = True
             for c in self._run_context.callbacks:
-                c.on_evaluate_pruned(candidate, param_info)
+                c.on_evaluate_pruned(candidate.unwrapped_value, param_info)
             return
         if candidate_result.is_nan:
             param_info.is_nan = True
             for c in self._run_context.callbacks:
-                c.on_evaluate_nan(candidate, param_info)
+                c.on_evaluate_nan(candidate.unwrapped_value, param_info)
             return
 
         for c in self._run_context.callbacks:
-            c.on_evaluate_end(candidate, candidate_result.value, param_info)
+            c.on_evaluate_end(
+                candidate.unwrapped_value, candidate_result.value, param_info
+            )
 
         if (
             self._best_f is None
@@ -720,7 +734,9 @@ class Search:
             self._best_solution = candidate
             self._best_f = candidate_result.value
             for c in self._run_context.callbacks:
-                c.on_new_best(self._best_solution, self._best_f, param_info)
+                c.on_new_best(
+                    self._best_solution.unwrapped_value, self._best_f, param_info
+                )
 
     def _shutdown_worker_processes(self):
         # This is actually not needed but let's keep it for potential future use
@@ -903,19 +919,21 @@ class Search:
             else:
                 candidate = self.mutate_from_best(temperature=current_temperature)
                 candidate_type = CandidateType.LOCAL_SAMPLING
-            if candidate not in self._f_cache:
-                # If candidate was already run before, let's skip this step
-                self._submit_candidate(
-                    objective_function,
-                    candidate_type,
-                    candidate,
-                    kwargs,
-                )
+
+            candidate = Candidate(candidate)  # candidate is a pair
+            if self._submit_candidate(
+                objective_function,
+                candidate_type,
+                candidate,
+                kwargs,
+            ):
+                # Candidate successfully submitted
                 current_temperature = schedule.temperature
             else:
+                # Candidate is a duplicate
                 param_info = ParamInfo(candidate_type, sampled_at=time.time())
                 for c in self._run_context.callbacks:
-                    c.on_duplicate_sampled(candidate, param_info)
+                    c.on_duplicate_sampled(candidate.unwrapped_value, param_info)
 
                 # Reject sample
                 current_temperature *= (
@@ -937,7 +955,7 @@ class Search:
         del self._run_context
         self._run_context = None
 
-        return self._best_solution
+        return self.best
 
     def save(self, checkpoint_path, pruner=None) -> str:
         """Saves the internal state of the hyperparameter search (history, current best, etc.) at the given checkpoint path."""
@@ -1021,7 +1039,9 @@ class Search:
     @property
     def best(self) -> Optional[dict]:
         """A dict object containing the best found parameter so far. None if no candidate has been evaluated yet."""
-        return self._best_solution
+        return (
+            None if self._best_solution is None else self._best_solution.unwrapped_value
+        )
 
     @property
     def best_f(self) -> Optional[float]:

@@ -16,6 +16,8 @@ import numpy as np
 import typing
 from inspect import signature
 
+from pyhopper.utils import WrappedSample
+
 
 def cast_to_int(fvalue):
     if isinstance(fvalue, np.ndarray):
@@ -40,25 +42,29 @@ class Parameter:
     def mutate(self, value: typing.Any, temperature: float) -> typing.Any:
         raise NotImplementedError()
 
-class ConditionalParameter(Parameter):
-    def __init__(self, kwargs):
-        super().__init__()
-        if len(kwargs) == 0:
-            raise ValueError("Must pass at least one case for a conditional parameter!")
-        self.cases = list(kwargs.keys())
-        self.values = kwargs
-        self.initial_value = self.cases[0], self.values[self.cases[0]]
 
-    def sample(self):
-        k = np.random.default_rng().choice(self.cases)
-        v = self.values[k]
-        return k,v
+# class ConditionalParameter(Parameter):
+#     def __init__(self, kwargs):
+#         super().__init__()
+#         if len(kwargs) == 0:
+#             raise ValueError("Must pass at least one case for a conditional parameter!")
+#         self.cases = list(kwargs.keys())
+#         self.values = kwargs
+#         self.initial_value = self.cases[0], self.values[self.cases[0]]
+#
+#     def sample(self):
+#         k = np.random.default_rng().choice(self.cases)
+#         v = self.values[k]
+#         return k, v
+#
+#     def mutate(self, value, temperature: float):
+#         switch_case = np.random.default_rng().choice(
+#             [True, False], p=[temperature, 1.0 - temperature]
+#         )
+#         if switch_case:
+#             return self.sample()
+#         return value
 
-    def mutate(self, value, temperature: float):
-        switch_case = np.random.default_rng().choice([True,False],p=[temperature,1.0-temperature])
-        if switch_case:
-            return self.sample()
-        return value
 
 class CustomParameter(Parameter):
     def __init__(self, init, mutation_strategy, sampling_strategy):
@@ -215,7 +221,9 @@ class PowerOfIntParameter(IntParameter):
 
 
 class ChoiceParameter(Parameter):
-    def __init__(self, options, init, is_ordinal, mutation_strategy, sampling_strategy):
+    def __init__(
+        self, options, init_index, is_ordinal, mutation_strategy, sampling_strategy
+    ):
         super().__init__()
         self._options = options
         self._is_ordinal = is_ordinal
@@ -224,33 +232,33 @@ class ChoiceParameter(Parameter):
         self._int_param = IntParameter(
             None, 0, len(options) - 1, None, None, None, None
         )
-        if init is None:
+        if init_index is None:
             if is_ordinal:
-                init = options[(len(options) - 1) // 2]
+                init_index = (len(options) - 1) // 2
             else:
-                init = options[0]
-        self.initial_value = init
+                init_index = 0
+        self.initial_value = WrappedSample(options[init_index], init_index)
 
     def sample(self):
         if self._sampling_strategy is not None:
-            new_value = self._sampling_strategy()
+            new_index = self._sampling_strategy()
         else:
-            new_value = self._options[self._int_param.sample()]
-        return new_value
+            new_index = self._int_param.sample()
+
+        return WrappedSample(value=self._options[new_index], aux=new_index)
 
     def mutate(self, value, temperature: float):
         if self._mutation_strategy is not None:
-            new_value = call_with_temperature(
+            new_index = call_with_temperature(
                 self._mutation_strategy, value, temperature
             )
         elif self._is_ordinal:
             # Values are ordered/related -> prefer adjacent items
-            index = self._options.index(value)
-            new_value = self._options[self._int_param.mutate(index, temperature)]
+            new_index = self._options[self._int_param.mutate(value.aux, temperature)]
         else:
             # Values are not ordered/related -> just pick any item
-            new_value = self._options[self._int_param.sample()]
-        return new_value
+            new_index = self._int_param.sample()
+        return WrappedSample(value=self._options[new_index], aux=new_index)
 
 
 class FloatParameter(Parameter):

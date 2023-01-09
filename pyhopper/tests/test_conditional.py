@@ -21,38 +21,42 @@ import pytest
 import pyhopper
 
 
+def of_add(param):
+    print(param)
+    return np.random.default_rng().normal()
+
+
+search = pyhopper.Search(
+    x=pyhopper.choice("a", "b", "c"),
+    y=pyhopper.choice("a", pyhopper.int(0, 10), ["z", pyhopper.int(-10, 0)]),
+)
+# search.sweep("a", [2, 5])
+search.run(of_add, direction="max", steps=15, seeding_steps=10)
+
+
 def of(param):
     return -np.square(param["lr"] - 3e-4) * 10
 
 
 def test_manual():
     search = pyhopper.Search(
-            lr = pyhopper.float(1e-5, 1e-2, fmt="0.1g"),
-            cond = pyhopper.cases(case1="abs",case2=pyhopper.int(0,10),case3=["s1",pyhopper.int(-10,0)])
-        )
+        lr=pyhopper.float(1e-5, 1e-2, fmt="0.1g"),
+        cond=pyhopper.choice("abs", pyhopper.int(0, 10), ["s1", pyhopper.int(-10, 0)]),
+    )
 
-    r1 = search.run(of, direction="max", steps=30,seeding_steps=10)
+    r1 = search.run(of, direction="max", steps=30, seeding_steps=10)
     assert "lr" in r1.keys()
+
 
 def test_manual2():
     search = pyhopper.Search(
-            lr = pyhopper.float(1e-5, 1e-2, fmt="0.1g"),
-            cond = pyhopper.cases({"case1": "abs","case2": pyhopper.int(0,10),"case3":["s1",pyhopper.int(-10,0)]})
-        )
+        lr=pyhopper.float(1e-5, 1e-2, fmt="0.1g"),
+        cond=pyhopper.choice(
+            ["case1", "abs"],
+            ["case2", pyhopper.int(0, 10)],
+            ["case3", ["s1", pyhopper.int(-10, 0)]],
+        ),
+    )
 
-    r1 = search.run(of, direction="max", steps=30,seeding_steps=10)
+    r1 = search.run(of, direction="max", steps=30, seeding_steps=10)
     assert "lr" in r1.keys()
-
-def test_fail():
-    with pytest.raises(ValueError):
-        search = pyhopper.Search(
-                not_cond = pyhopper.cases("case1", pyhopper.int(0,10))
-            )
-    with pytest.raises(ValueError):
-        search = pyhopper.Search(
-                not_cond = pyhopper.choice("case1", pyhopper.int(0,10))
-            )
-    with pytest.raises(ValueError):
-        search = pyhopper.Search(
-                not_cond = pyhopper.choice("case1", ["case2",pyhopper.int(0,10)])
-            )
