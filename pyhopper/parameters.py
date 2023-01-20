@@ -254,7 +254,7 @@ class ChoiceParameter(Parameter):
             )
         elif self._is_ordinal:
             # Values are ordered/related -> prefer adjacent items
-            new_index = self._options[self._int_param.mutate(value.aux, temperature)]
+            new_index = self._int_param.mutate(value.aux, temperature)
         else:
             # Values are not ordered/related -> just pick any item
             new_index = self._int_param.sample()

@@ -220,7 +220,8 @@ def test_choice_register():
         }
     )
     # r1 = search.run(of, seeding_runtime="1h", runtime="1s", n_jobs=2)
-    r1 = search.run(of, direction="max", seeding_runtime="1h", steps=10, n_jobs=5)
+    r1 = search.run(of, direction="max", steps=10, n_jobs=5)
+    r1 = search.run(of, direction="max", seeding_steps=2, steps=10, n_jobs=5)
     assert "lr" in r1.keys()
 
 
@@ -236,7 +237,7 @@ def test_parallelization():
         }
     )
     start = time.time()
-    r1 = search.run(of, direction="max", seeding_runtime="1h", steps=10, n_jobs=5)
+    r1 = search.run(of, direction="max", seeding_steps=4, steps=10, n_jobs=5)
     assert time.time() - start < 3
 
 
