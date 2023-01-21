@@ -161,6 +161,7 @@ class History(Callback):
         self._log_candidate = state_dict["log_candidate"]
         self._log_types = state_dict["log_types"]
         self._log_f = state_dict["log_f"]
+        self._log_best_f = state_dict["log_best_f"]
         self._log_finished_at = state_dict["log_finished_at"]
         self._log_runtime = state_dict["log_runtime"]
         self._pruned_types = state_dict["pruned_types"]
